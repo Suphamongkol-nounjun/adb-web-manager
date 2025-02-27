@@ -14,6 +14,7 @@ export async function POST(req) {
     }
 
     const filePath = path.join(process.cwd(), 'src', 'app', 'json', 'scan_results.json');
+    console.log("pathcurrent: ",filePath);
 
     // ตรวจสอบว่าไฟล์มีอยู่จริงหรือไม่
     if (!fs.existsSync(filePath)) {
