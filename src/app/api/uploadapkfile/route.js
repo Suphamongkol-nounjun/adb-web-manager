@@ -1,40 +1,71 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
 import path from "path";
+import { writeFile, mkdir, readdir, unlink } from "fs/promises";
 
-// ตั้งค่าโฟลเดอร์ปลายทางสำหรับไฟล์ที่อัปโหลด
-const uploadDir = path.join(process.cwd(), "src/platform-tool/apk/");
+export const GET = async () => {
+    const directoryPath = path.join(process.cwd(), 'src', 'platform-tools', 'adb');
+  
+    try {
+      const filesInDirectory = await readdir(directoryPath);
+  
+      if (filesInDirectory.length === 0) {
+        return NextResponse.json({
+          message: "ไม่มีไฟล์ในโฟลเดอร์"
+        });
+      }
+  
+      // ส่งชื่อไฟล์ที่มีในโฟลเดอร์กลับไป
+      return NextResponse.json({
+        message: "มีไฟล์ในโฟลเดอร์",
+        fileName: filesInDirectory[0], // เพราะมีไฟล์แค่ไฟล์เดียว
+      });
+    } catch (error) {
+      console.log("Error occurred while reading directory: ", error);
+      return NextResponse.json({ message: "ไม่สามารถอ่านโฟลเดอร์ได้" }, { status: 500 });
+    }
+  };
 
-// ตรวจสอบว่ามีโฟลเดอร์หรือยัง ถ้าไม่มีให้สร้าง
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-export async function POST(req) {
-  try {
-    // ใช้ formData เพื่อดึงข้อมูลไฟล์จาก request
+  export const POST = async (req, res) => {
     const formData = await req.formData();
-    const file = formData.get("apkFile"); // ชื่อฟิลด์ต้องตรงกับที่ส่งมาจาก Frontend
-
+  
+    const file = formData.get("file");
     if (!file) {
-      return NextResponse.json({ success: false, message: "No file uploaded" }, { status: 400 });
+      return NextResponse.json({ error: "No files received." }, { status: 400 });
     }
-
-    // ตรวจสอบชนิดไฟล์ .apk
-    if (file.type !== "application/vnd.android.package-archive") {
-      return NextResponse.json({ success: false, message: "Only .apk files are allowed!" }, { status: 400 });
+  
+    // ตรวจสอบว่าไฟล์เป็น .apk หรือไม่
+    const fileExtension = path.extname(file.name).toLowerCase();
+    if (fileExtension !== ".apk") {
+      return NextResponse.json({ error: "ไฟล์ต้องเป็น .apk เท่านั้น" }, { status: 400 });
     }
-
-    // แปลงไฟล์เป็น buffer และบันทึก
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const filePath = path.join(uploadDir, file.name);
-
-    // บันทึกไฟล์ลงในระบบ
-    fs.writeFileSync(filePath, buffer);
-
-    return NextResponse.json({ success: true, message: "Upload success!", path: filePath });
-  } catch (error) {
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
-  }
-}
+  
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const directoryPath = path.join(process.cwd(), 'src', 'platform-tools', 'adb');
+    const filePath = path.join(directoryPath, file.name.replaceAll(" ", "_"));
+  
+    try {
+      // ตรวจสอบและสร้างโฟลเดอร์ 'adb' ถ้ายังไม่มี
+      await mkdir(directoryPath, { recursive: true });
+  
+      // เคลียร์ไฟล์เก่าก่อนการอัพโหลด
+      const filesInDirectory = await readdir(directoryPath);
+      for (const file of filesInDirectory) {
+        const fileToDelete = path.join(directoryPath, file);
+        await unlink(fileToDelete);
+        console.log(`Deleted old file: ${fileToDelete}`);
+      }
+  
+      // อัพโหลดไฟล์ใหม่
+      console.log(`Uploading new file to: ${filePath}`);
+      await writeFile(filePath, buffer);
+  
+      return NextResponse.json({
+        Message: "Success",
+        status: 201,
+        fileName: file.name, // ส่งชื่อไฟล์ที่อัพโหลดกลับไป
+      });
+    } catch (error) {
+      console.log("Error occurred ", error);
+      return NextResponse.json({ Message: "Failed", status: 500 });
+    }
+  };
