@@ -20,8 +20,6 @@ export default function Home() {
         const data = await response.json();
         
         console.log("File Status Response:", data); // log ข้อความจาก API
-        setLogMessage(JSON.stringify(data, null, 2)); // แสดง JSON ที่ได้รับจาก API
-        
         if (data.message === "ไม่มีไฟล์ในโฟลเดอร์") {
           setExistingFile("ไม่มีไฟล์ในโฟลเดอร์");
         } else if (data.fileName) {
@@ -29,7 +27,7 @@ export default function Home() {
         }
       } catch (error) {
         console.error("Error fetching file status: ", error);
-        setLogMessage("ไม่สามารถตรวจสอบไฟล์ได้");
+        setExistingFile("ไม่สามารถตรวจสอบไฟล์ได้");
       }
     };
 
@@ -38,7 +36,6 @@ export default function Home() {
         const response = await fetch("/api/scanadbnetwork");
         const data = await response.json();
         console.log("Local IP Response:", data); // log ข้อความจาก API
-        setLogMessage(JSON.stringify(data, null, 2)); // แสดง JSON ที่ได้รับจาก API
         if (data.ip) {
           setLocalIp(data.ip);
         }
@@ -56,23 +53,22 @@ export default function Home() {
       setLogMessage("ไม่พบ IP เครื่องของคุณ กรุณารีเฟรช");
       return;
     }
-  
+
     setScanning(true);
     try {
-      // เรียก API สำหรับการสแกน Network
       const response = await fetch("/api/scanadbnetwork", {
         method: "POST",
         body: JSON.stringify({ ip: localIp }),
         headers: { "Content-Type": "application/json" },
       });
-  
+
       const data = await response.json();
+      
       console.log("Scan Network Response:", data); // log ข้อความจาก API
-      setLogMessage(JSON.stringify(data, null, 2)); // แสดง JSON ที่ได้รับจาก API
-  
+
       if (response.status === 200) {
-        // อัปเดต devices ที่พบจากการสแกน
-        setDevices(data.results)
+        setDevices(data.results);
+        
       } else {
         setLogMessage("เกิดข้อผิดพลาดในการสแกน");
       }
@@ -83,7 +79,6 @@ export default function Home() {
       setScanning(false);
     }
   };
-  
 
   const handleUpload = async () => {
     if (!selectedFile) {
@@ -106,7 +101,6 @@ export default function Home() {
       const data = await response.json();
       
       console.log("Upload Response:", data); // log ข้อความจาก API
-      setLogMessage(JSON.stringify(data, null, 2)); // แสดง JSON ที่ได้รับจาก API
 
       if (response.ok && data.Message === "Success") {
         setMessage("อัพโหลดไฟล์สำเร็จ");
@@ -122,67 +116,12 @@ export default function Home() {
     }
   };
 
-  const connectDevice = async (deviceIp) => {
-    try {
-      const response = await fetch("/api/adbconnect", {
-        method: "POST",
-        body: JSON.stringify({ ip: deviceIp }),
-        headers: { "Content-Type": "application/json" },
-      });
-  
-      const data = await response.json();
-      console.log("Connect Device Response:", data);
-  
-      if (response.status === 200) {
-        const updatedDevices = devices.map((device) =>
-          device.ip === deviceIp
-            ? { ...device, status: "Connect" }
-            : device
-        );
-        setDevices(updatedDevices);
-        setLogMessage(JSON.stringify(data, null, 2)); // แสดง JSON ที่ได้รับจาก API
-      } else {
-        setLogMessage(`ไม่สามารถเชื่อมต่ออุปกรณ์ ${deviceIp}`);
-      }
-    } catch (error) {
-      console.error("Error occurred while connecting device: ", error);
-      setLogMessage(`ไม่สามารถเชื่อมต่ออุปกรณ์ ${deviceIp}`);
-    }
-  };
-  
-  const disconnectDevice = async (deviceIp) => {
-    try {
-      const response = await fetch("/api/adbdisconnect", {
-        method: "POST",
-        body: JSON.stringify({ ip: deviceIp }),
-        headers: { "Content-Type": "application/json" },
-      });
-  
-      const data = await response.json();
-      console.log("Disconnect Device Response:", data);
-  
-      if (response.status === 200) {
-        const updatedDevices = devices.map((device) =>
-          device.ip === deviceIp
-            ? { ...device, status: "Disconnect" }
-            : device
-        );
-        setDevices(updatedDevices);
-        setLogMessage(JSON.stringify(data, null, 2)); // แสดง JSON ที่ได้รับจาก API
-      } else {
-        setLogMessage(`ไม่สามารถตัดการเชื่อมต่ออุปกรณ์ ${deviceIp}`);
-      }
-    } catch (error) {
-      console.error("Error occurred while disconnecting device: ", error);
-      setLogMessage(`ไม่สามารถตัดการเชื่อมต่ออุปกรณ์ ${deviceIp}`);
-    }
-  };
   const connectAllDevices = async () => {
     if (devices.length === 0) {
       setLogMessage("ไม่พบอุปกรณ์ที่สามารถเชื่อมต่อได้");
       return;
     }
-  
+
     const devicesToConnect = devices.map(device => ({
       ip: device.ip,
       mac: device.mac,
@@ -190,7 +129,7 @@ export default function Home() {
       port: device.port,
       service: device.service,
     }));
-  
+
     try {
       const response = await fetch("/api/adbconnectall", {
         method: "POST",
@@ -199,17 +138,18 @@ export default function Home() {
           "Content-Type": "application/json",
         },
       });
-  
+
       const data = await response.json();
       console.log("Connect All Devices Response:", data); // log ข้อความจาก API
-      setLogMessage(JSON.stringify(data, null, 2)); // แสดง JSON ที่ได้รับจาก API
-  
+
       if (response.status === 200) {
+        // อัพเดต status ให้เป็น "Connect"
         const updatedDevices = devices.map(device => ({
           ...device,
           status: "Connect",
         }));
         setDevices(updatedDevices);
+        setLogMessage("เชื่อมต่ออุปกรณ์ทั้งหมดสำเร็จ");
       } else {
         setLogMessage("เกิดข้อผิดพลาดในการเชื่อมต่ออุปกรณ์");
       }
@@ -218,7 +158,7 @@ export default function Home() {
       setLogMessage("ไม่สามารถเชื่อมต่ออุปกรณ์ทั้งหมดได้");
     }
   };
-  
+
   const disconnectAllDevices = async () => {
     const devicesToDisconnect = devices.map(device => ({
       ip: device.ip,
@@ -227,7 +167,7 @@ export default function Home() {
       port: device.port,
       service: device.service,
     }));
-  
+
     try {
       const response = await fetch("/api/adbdisconnectall", {
         method: "POST",
@@ -236,17 +176,18 @@ export default function Home() {
           "Content-Type": "application/json",
         },
       });
-  
+
       const data = await response.json();
       console.log("Disconnect All Devices Response:", data); // log ข้อความจาก API
-      setLogMessage(JSON.stringify(data, null, 2)); // แสดง JSON ที่ได้รับจาก API
-  
+
       if (response.status === 200) {
+        // อัพเดต status ให้เป็น "Disconnect"
         const updatedDevices = devices.map(device => ({
           ...device,
           status: "Disconnect",
         }));
         setDevices(updatedDevices);
+        setLogMessage("ตัดการเชื่อมต่ออุปกรณ์ทั้งหมดสำเร็จ");
       } else {
         setLogMessage("เกิดข้อผิดพลาดในการตัดการเชื่อมต่ออุปกรณ์");
       }
@@ -255,7 +196,6 @@ export default function Home() {
       setLogMessage("ไม่สามารถตัดการเชื่อมต่ออุปกรณ์ทั้งหมดได้");
     }
   };
-    
 
   useEffect(() => {
     console.log("Log message:", logMessage); // ตรวจสอบค่า logMessage
@@ -317,20 +257,19 @@ export default function Home() {
                   <td className="border px-4 py-3 text-center">{device.service}</td>
                   <td className="border px-4 py-3 text-center">{device.status || "Disconnect"}</td>
                   <td className="border px-4 py-3 text-center">
-                                  <button
-                  onClick={() => {
-                    if (device.status === "Connect") {
-                      disconnectDevice(device.ip);
-                    } else {
-                      connectDevice(device.ip);
-                    }
-                  }}
-                  className={`px-4 py-2 rounded ${
-                    device.status === "Connect" ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"
-                  } text-white`}
-                >
-                  {device.status === "Connect" ? "Disconnect" : "Connect"}
-                </button>
+                    <button
+                      onClick={() => {
+                        const updatedDevices = devices.map((dev) => 
+                          dev.ip === device.ip ? { ...dev, status: dev.status === "Connect" ? "Disconnect" : "Connect" } : dev
+                        );
+                        setDevices(updatedDevices);
+                      }}
+                      className={`px-4 py-2 rounded ${
+                        device.status === "Connect" ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"
+                      } text-white`}
+                    >
+                      {device.status === "Connect" ? "Disconnect" : "Connect"}
+                    </button>
                   </td>
                 </tr>
               ))
@@ -339,6 +278,15 @@ export default function Home() {
             )}
           </tbody>
         </table>
+
+        {/* Log ข้อความ */}
+        <div className="mt-4 text-center">
+            <p className="font-semibold">Log ข้อความจาก API:</p>
+            <pre className="text-sm bg-gray-100 p-6 rounded-lg border border-gray-300 shadow-lg w-full max-w-4xl overflow-auto">
+              {logMessage}
+            </pre>
+          </div>
+
         {/* ปุ่ม Connect all devices และ Disconnect all devices */}
         <div className="flex justify-center gap-4 mt-8">
           <button onClick={connectAllDevices} className="px-6 py-3 bg-green-500 text-white rounded hover:bg-green-600">
@@ -348,16 +296,6 @@ export default function Home() {
             Disconnect all devices
           </button>
         </div>
-
-        {/* Log ข้อความ */}
-        <div className="mt-4 text">
-            <p className="font-semibold">Log ข้อความจาก API:</p>
-            <pre className="text-sm bg-gray-100 p-6 rounded-lg border border-gray-300 shadow-lg w-full max-w-4xl overflow-auto">
-              {logMessage}
-            </pre>
-          </div>
-
-        
       </main>
     </div>
   );
