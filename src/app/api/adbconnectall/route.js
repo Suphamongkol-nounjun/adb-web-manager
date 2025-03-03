@@ -34,6 +34,11 @@ export async function POST(req) {
             message = `ไม่สามารถเชื่อมต่อ ADB กับ ${ip} ได้`;
             meaagefromadb = `adb message: ${stdout}`;
           }
+          if (stdout.includes('failed to authenticate')) {
+            status = "can't connect";
+            message = `ไม่สามารถเชื่อมต่อ ADB กับ ${ip} ได้`;
+            meaagefromadb = `adb message: ${stdout}`;
+          }
 
           console.log(message);
           resolve({ ip, status, message, meaagefromadb });
