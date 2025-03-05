@@ -26,7 +26,7 @@ export async function scanNetwork(localIp) {
 
   console.log(`🌐 กำลังสแกนในเครือข่าย: ${subnet}`);
 
-  const scan = new NmapScan(subnet, '-sV -p 5555 -n'); // -sn = Scan แบบ Ping Sweep, -n = ไม่ทำ DNS resolution
+  const scan = new NmapScan(subnet, '-sV -p 5555 -n');
 
   // ใช้ Promise เพื่อรอให้สแกนเสร็จสมบูรณ์
   return new Promise((resolve, reject) => {

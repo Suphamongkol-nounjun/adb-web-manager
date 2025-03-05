@@ -66,16 +66,50 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
       });
   
-      const data = await response.json();
-      console.log("Scan Network Response:", data); // log ข้อความจาก API
-      setLogMessage(JSON.stringify(data, null, 2)); // แสดง JSON ที่ได้รับจาก API
+      const networkData = await response.json();
+      console.log("Scan Network Response:", networkData);
   
-      if (response.status === 200) {
-        // อัปเดต devices ที่พบจากการสแกน
-        setDevices(data.results)
-      } else {
+      if (response.status !== 200) {
         setLogMessage("เกิดข้อผิดพลาดในการสแกน");
+        return;
       }
+  
+      // เรียก API เพื่อเช็คอุปกรณ์ที่เชื่อมต่อผ่าน ADB
+      const adbResponse = await fetch("/api/adbdevices");
+      const adbData = await adbResponse.json();
+      console.log("ADB Devices Response:", adbData);
+  
+      // ดึงรายการ deviceId จาก ADB Devices เพื่อเปรียบเทียบ
+      const adbDevicesMap = new Map(adbData.devices.map((adb) => [adb.deviceId, adb.status]));
+  
+      // อัปเดตสถานะของอุปกรณ์ที่พบจาก scanadbnetwork
+      const updatedDevices = networkData.results.map((device) => {
+        const deviceIp = `${device.ip}:5555`; // แปลง IP ให้ตรงกับ ADB
+        const adbStatus = adbDevicesMap.get(deviceIp);
+  
+        return {
+          ...device,
+          status: adbStatus === "device" ? "Connect" 
+                 : adbStatus === "unauthorized" ? "Unauthorized"
+                 : "Disconnect", // ถ้าไม่มีข้อมูลให้เป็น Disconnect
+        };
+      });
+  
+      // ตรวจสอบว่ามีอุปกรณ์ ADB ไหนที่ไม่มีใน Network Scan หรือไม่
+      adbData.devices.forEach((adbDevice) => {
+        if (!updatedDevices.some((device) => `${device.ip}:5555` === adbDevice.deviceId)) {
+          updatedDevices.push({
+            ip: adbDevice.deviceId,
+            status: adbDevice.status === "device" ? "Connect" 
+                   : adbDevice.status === "unauthorized" ? "Unauthorized"
+                   : "Disconnect",
+          });
+        }
+      });
+  
+      setDevices(updatedDevices);
+      setLogMessage(JSON.stringify({ networkDevices: networkData, adbDevices: adbData }, null, 2));
+  
     } catch (error) {
       console.error("Error occurred: ", error);
       setLogMessage("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์");
@@ -83,6 +117,8 @@ export default function Home() {
       setScanning(false);
     }
   };
+  
+  
   
 
   const handleUpload = async () => {
@@ -265,12 +301,12 @@ export default function Home() {
     <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
       <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
         <Image className="dark:invert" src="/next.svg" alt="Next.js logo" width={180} height={38} priority />
-
+  
         <p className="font-semibold">{existingFile}</p>
-
+  
         <input type="file" accept=".apk" onChange={(e) => setSelectedFile(e.target.files[0])} className="p-2 border rounded" />
         {selectedFile && <p>📂 เลือกไฟล์: {selectedFile.name}</p>}
-
+  
         <button
           onClick={() => handleUpload()}
           disabled={uploading}
@@ -278,9 +314,9 @@ export default function Home() {
         >
           {uploading ? "กำลังอัพโหลด..." : "อัพโหลดไฟล์"}
         </button>
-
+  
         {message && <p className="mt-4 text-center text-red-500">{message}</p>}
-
+  
         <button
           onClick={scanNetwork}
           disabled={scanning}
@@ -288,9 +324,9 @@ export default function Home() {
         >
           {scanning ? "กำลังสแกน..." : "สแกน Network"}
         </button>
-
+  
         <p className="mt-2 text-gray-600">📍 IP ของคุณ: {localIp || "กำลังโหลด..."}</p>
-
+  
         <h2 className="mt-4 font-semibold text-lg">📋 อุปกรณ์ที่พบ:</h2>
         <table className="w-full max-w-4xl border-collapse shadow-lg rounded-lg overflow-hidden">
           <thead>
@@ -307,38 +343,44 @@ export default function Home() {
           </thead>
           <tbody>
             {devices.length > 0 ? (
-              devices.map((device, index) => (
-                <tr key={index} className={`${index % 2 === 0 ? "bg-gray-100" : "bg-white"} hover:bg-gray-200`}>
-                  <td className="border px-4 py-3 text-center">{index + 1}</td>
-                  <td className="border px-4 py-3 text-center">{device.ip}</td>
-                  <td className="border px-4 py-3 text-center">{device.mac}</td>
-                  <td className="border px-4 py-3 text-center">{device.vendor}</td>
-                  <td className="border px-4 py-3 text-center">{device.port}</td>
-                  <td className="border px-4 py-3 text-center">{device.service}</td>
-                  <td className="border px-4 py-3 text-center">{device.status || "Disconnect"}</td>
-                  <td className="border px-4 py-3 text-center">
-                                  <button
-                  onClick={() => {
-                    if (device.status === "Connect") {
-                      disconnectDevice(device.ip);
-                    } else {
-                      connectDevice(device.ip);
-                    }
-                  }}
-                  className={`px-4 py-2 rounded ${
-                    device.status === "Connect" ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"
-                  } text-white`}
-                >
-                  {device.status === "Connect" ? "Disconnect" : "Connect"}
-                </button>
-                  </td>
-                </tr>
-              ))
+              devices.map((device, index) => {
+                const isIpValid = /^\d+\.\d+\.\d+\.\d+$/.test(device.ip); // ตรวจสอบว่าเป็น IP จริงหรือไม่
+                
+                return (
+                  <tr key={index} className={`${index % 2 === 0 ? "bg-gray-100" : "bg-white"} hover:bg-gray-200`}>
+                    <td className="border px-4 py-3 text-center">{index + 1}</td>
+                    <td className="border px-4 py-3 text-center">{device.ip}</td>
+                    <td className="border px-4 py-3 text-center">{device.mac}</td>
+                    <td className="border px-4 py-3 text-center">{device.vendor}</td>
+                    <td className="border px-4 py-3 text-center">{device.port}</td>
+                    <td className="border px-4 py-3 text-center">{device.service}</td>
+                    <td className="border px-4 py-3 text-center">{device.status || "Disconnect"}</td>
+                    <td className="border px-4 py-3 text-center">
+                      <button
+                        onClick={() => {
+                          if (device.status === "Connect") {
+                            disconnectDevice(device.ip);
+                          } else {
+                            connectDevice(device.ip);
+                          }
+                        }}
+                        disabled={!isIpValid} // ปิดการใช้งานปุ่มถ้าไม่ใช่ IP จริง
+                        className={`px-4 py-2 rounded text-white 
+                          ${device.status === "Connect" ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"}
+                          ${!isIpValid ? "opacity-50 cursor-not-allowed bg-gray-400 hover:bg-gray-400" : ""}`} // ถ้า disable จะเป็นสีเทา
+                      >
+                        {isIpValid ? (device.status === "Connect" ? "Disconnect" : "Connect") : "Connect"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             ) : (
               <tr><td colSpan="8" className="text-center p-4">ไม่พบอุปกรณ์</td></tr>
             )}
           </tbody>
         </table>
+  
         {/* ปุ่ม Connect all devices และ Disconnect all devices */}
         <div className="flex justify-center gap-4 mt-8">
           <button onClick={connectAllDevices} className="px-6 py-3 bg-green-500 text-white rounded hover:bg-green-600">
@@ -348,16 +390,14 @@ export default function Home() {
             Disconnect all devices
           </button>
         </div>
-
+  
         {/* Log ข้อความ */}
         <div className="mt-4 text">
-            <p className="font-semibold">Log ข้อความจาก API:</p>
-            <pre className="text-sm bg-gray-100 p-6 rounded-lg border border-gray-300 shadow-lg w-full max-w-4xl overflow-auto">
-              {logMessage}
-            </pre>
-          </div>
-
-        
+          <p className="font-semibold">Log ข้อความจาก API:</p>
+          <pre className="text-sm bg-gray-100 p-6 rounded-lg border border-gray-300 shadow-lg w-full max-w-4xl overflow-auto">
+            {logMessage}
+          </pre>
+        </div>
       </main>
     </div>
   );
