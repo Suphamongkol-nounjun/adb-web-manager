@@ -1,71 +1,81 @@
-import { exec } from 'child_process';
-import path from 'path';
+import { exec } from "child_process";
+import path from "path";
 
 export async function POST(req) {
   try {
-    // รับข้อมูลจาก body
-    const devices = await req.json();  // ดึงข้อมูลทั้งหมดจาก body (รวมถึง ip และ existingFile)
-    
+    const devices = await req.json();
+
     if (!devices || devices.length === 0) {
       return new Response(
-        JSON.stringify({ message: 'กรุณาระบุข้อมูล IP และ existingFile' }),
+        JSON.stringify({ message: "กรุณาระบุข้อมูล IP และ existingFile" }),
         { status: 400 }
       );
     }
 
-    const adbPath = path.join(process.cwd(), 'src', 'platform-tools', 'adb'); // พาธของ adb
-    const results = [];
+    const adbPath = path.join(process.cwd(), "src", "platform-tools", "adb");
 
-    // ลูปติดตั้ง APK บนอุปกรณ์ทุกตัว
-    for (let device of devices) {
-      const { ip, existingFile } = device;  // ดึงค่า ip และ existingFile จากแต่ละอุปกรณ์
-      const apkPath = path.join(process.cwd(), 'src', 'platform-tools','adb', existingFile); // เส้นทางของไฟล์ APK
-      console.log(`🌐 กำลังติดตั้ง APK ที่ ${apkPath} บนอุปกรณ์ที่มี IP: ${ip}`);  // แสดงข้อความขณะติดตั้ง
+    // ✅ ใช้ ReadableStream เพื่อส่งข้อมูลทีละบรรทัด
+    const stream = new ReadableStream({
+      async start(controller) {
+        for (let device of devices) {
+          const { ip, existingFile, version } = device;
+          const apkPath = path.join(
+            process.cwd(),
+            "src",
+            "platform-tools",
+            "adb",
+            existingFile
+          );
 
-      const result = await new Promise((resolve) => {
-        exec(`${adbPath} -s ${ip} install ${apkPath}`, (err, stdout, stderr) => {
-          let status = 'ติดตั้งสำเร็จ'; // ค่าดีฟอลต์เป็นติดตั้งสำเร็จ
-          let message = `ติดตั้ง APK ที่ ${apkPath} บนอุปกรณ์ที่ ${ip} สำเร็จ`;
-          let adbMessage = `adb message: ${stdout}`;
+          // 🔹 ส่งข้อความสถานะเริ่มติดตั้ง
+          controller.enqueue(
+            JSON.stringify({
+              ip,
+              status: "กำลังติดตั้ง",
+              message: `🌐 กำลังติดตั้ง APK ที่ ${apkPath} บนอุปกรณ์ที่มี IP: ${ip}`,
+            }) + "\n"
+          );
 
-          if (err) {
-            status = 'ติดตั้งไม่สำเร็จ';
-            message = `ไม่สามารถติดตั้ง APK บนอุปกรณ์ที่ ${ip} ได้`;
-            adbMessage = `adb message: ${stdout}`;
-          }
-          if (stderr) {
-            status = 'ติดตั้งไม่สำเร็จ';
-            message = `ไม่สามารถติดตั้ง APK บนอุปกรณ์ที่ ${ip} ได้`;
-            adbMessage = `adb message: ${stderr}`;
-          }
+          await new Promise((resolve) => {
+            exec(
+              `${adbPath} -s ${ip} install ${apkPath}`,
+              (err, stdout, stderr) => {
+                let status = "ติดตั้งสำเร็จ";
+                let message = `✅ ติดตั้ง APK ที่ ${apkPath} บนอุปกรณ์ ${ip} สำเร็จ`;
+                let versionDevice = version;
 
-          console.log(message);
-          resolve({ ip, status, message, adbMessage });
-        });
-      });
+                if (err || stderr) {
+                  status = "ติดตั้งไม่สำเร็จ";
+                  message = `❌ ไม่สามารถติดตั้ง APK บนอุปกรณ์ ${ip} ได้` + (stderr || err);
+                }
 
-      results.push(result);
-    }
+                // 🔹 ส่งข้อมูลสถานะกลับไป
+                controller.enqueue(
+                  JSON.stringify({ ip, status, message,version:versionDevice }) + "\n"
+                );
 
-    // ส่งผลลัพธ์กลับไป
-    return new Response(
-      JSON.stringify({
-        message: 'การติดตั้ง APK เสร็จสิ้น',
-        results: results,  // ส่งผลลัพธ์ทั้งหมดกลับไป
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+                resolve();
+              }
+            );
+          });
+        }
+
+        controller.close();
+      },
+    });
+
+    return new Response(stream, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/plain",
+      },
+    });
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error("❌ Error:", error);
     return new Response(
       JSON.stringify({
-        status: 'error',
-        message: 'เกิดข้อผิดพลาดในการติดตั้ง APK',
+        status: "error",
+        message: "เกิดข้อผิดพลาดในการติดตั้ง APK",
         error: error.message,
       }),
       { status: 500 }

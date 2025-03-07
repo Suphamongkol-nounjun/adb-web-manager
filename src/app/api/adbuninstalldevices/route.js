@@ -14,51 +14,65 @@ export async function POST(req) {
     }
 
     const adbPath = path.join(process.cwd(), 'src', 'platform-tools', 'adb'); // พาธของ adb
-    const results = [];
 
-    // ลูปถอนการติดตั้ง APK บนอุปกรณ์ทุกตัว
-    for (let device of devices) {
-      const { ip, packageName } = device;  // ดึงค่า ip และ packageName จากแต่ละอุปกรณ์
-      console.log(`🌐 กำลังถอนการติดตั้ง APK ที่ ${packageName} บนอุปกรณ์ที่มี IP: ${ip}`);  // แสดงข้อความขณะถอนการติดตั้ง
+    // สร้าง ReadableStream เพื่อส่งข้อมูลกลับไปยัง frontend แบบ real-time
+    const stream = new ReadableStream({
+      start(controller) {
+        (async () => {
+          // ลูปถอนการติดตั้ง APK บนอุปกรณ์ทุกตัว
+          for (let device of devices) {
+            const { ip, packageName } = device;  // ดึงค่า ip และ packageName จากแต่ละอุปกรณ์
+            console.log(`🌐 กำลังถอนการติดตั้ง APK ที่ ${packageName} บนอุปกรณ์ที่มี IP: ${ip}`);  // แสดงข้อความขณะถอนการติดตั้ง
 
-      const result = await new Promise((resolve) => {
-        exec(`${adbPath} -s ${ip} uninstall ${packageName}`, (err, stdout, stderr) => {
-          let status = 'ถอนการติดตั้งสำเร็จ'; // ค่าดีฟอลต์เป็นถอนการติดตั้งสำเร็จ
-          let message = `ถอนการติดตั้ง APK ที่ ${packageName} บนอุปกรณ์ที่ ${ip} สำเร็จ`;
-          let adbMessage = `adb message: ${stdout}`;
+            try {
+              const result = await new Promise((resolve) => {
+                exec(`${adbPath} -s ${ip} uninstall ${packageName}`, (err, stdout, stderr) => {
+                  let status = 'ถอนการติดตั้งสำเร็จ'; // ค่าดีฟอลต์เป็นถอนการติดตั้งสำเร็จ
+                  let message = `ถอนการติดตั้ง APK ที่ ${packageName} บนอุปกรณ์ที่ ${ip} สำเร็จ`;
+                  let adbMessage = `adb message: ${stdout}`;
 
-          if (err) {
-            status = 'ถอนการติดตั้งไม่สำเร็จ';
-            message = `ไม่สามารถถอนการติดตั้ง APK ที่ ${packageName} บนอุปกรณ์ที่ ${ip} ได้`;
-            adbMessage = `adb message: ${stdout}`;
+                  if (err) {
+                    status = 'ถอนการติดตั้งไม่สำเร็จ';
+                    message = `ไม่สามารถถอนการติดตั้ง APK ที่ ${packageName} บนอุปกรณ์ที่ ${ip} ได้`;
+                    adbMessage = `adb message: ${stdout}`;
+                  }
+                  if (stderr) {
+                    status = 'ถอนการติดตั้งไม่สำเร็จ';
+                    message = `ไม่สามารถถอนการติดตั้ง APK ที่ ${packageName} บนอุปกรณ์ที่ ${ip} ได้`;
+                    adbMessage = `adb message: ${stderr}`;
+                  }
+
+                  resolve({ ip, status, message, adbMessage });
+                });
+              });
+
+              // ส่งข้อมูลไปยัง frontend ทันทีหลังจากการถอนการติดตั้งเสร็จ
+              const messageToSend = JSON.stringify(result) + "\n";
+              controller.enqueue(new TextEncoder().encode(messageToSend));  // ส่งข้อมูลเป็นบรรทัดๆ
+
+            } catch (error) {
+              console.error('❌ Error:', error);
+              const errorMessage = JSON.stringify({
+                ip: device.ip,
+                status: 'ถอนการติดตั้งไม่สำเร็จ',
+                message: `ไม่สามารถถอนการติดตั้ง APK ที่ ${packageName} บนอุปกรณ์ที่ ${ip} ได้`,
+                adbMessage: `error: ${error.message}`,
+              }) + "\n";
+              controller.enqueue(new TextEncoder().encode(errorMessage));  // ส่งข้อความข้อผิดพลาดไปยัง frontend
+            }
           }
-          if (stderr) {
-            status = 'ถอนการติดตั้งไม่สำเร็จ';
-            message = `ไม่สามารถถอนการติดตั้ง APK ที่ ${packageName} บนอุปกรณ์ที่ ${ip} ได้`;
-            adbMessage = `adb message: ${stderr}`;
-          }
-
-          console.log(message);
-          resolve({ ip, status, message, adbMessage });
+          controller.close();  // เมื่อเสร็จสิ้นทั้งหมด
+        })().catch((err) => {
+          console.error('Stream error:', err);
+          controller.error(err);
         });
-      });
-
-      results.push(result);
-    }
-
-    // ส่งผลลัพธ์กลับไป
-    return new Response(
-      JSON.stringify({
-        message: 'การถอนการติดตั้ง APK เสร็จสิ้น',
-        results: results,  // ส่งผลลัพธ์ทั้งหมดกลับไป
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-        },
       }
-    );
+    });
+
+    return new Response(stream, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+
   } catch (error) {
     console.error('❌ Error:', error);
     return new Response(

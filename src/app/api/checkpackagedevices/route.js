@@ -4,17 +4,17 @@ import path from 'path';
 export async function POST(req) {
   try {
     // รับข้อมูลจาก body
-    const devices = await req.json();  // ดึงข้อมูลทั้งหมดจาก body (รวมถึง ip, packageName)
-    
-    if (!Array.isArray(devices) || devices.length === 0) {
+    const devices = await req.json();
+    console.log('Received devices:', devices);  // ตรวจสอบข้อมูลที่ได้รับจาก request
+
+    if (!devices || devices.length === 0) {
       return new Response(
-        JSON.stringify({ message: 'กรุณาระบุข้อมูล IP และ packageName อย่างถูกต้อง' }),
+        JSON.stringify({ message: 'ไม่มีข้อมูลใน body' }),
         { status: 400 }
       );
     }
 
     const adbPath = path.join(process.cwd(), 'src', 'platform-tools', 'adb'); // พาธของ adb
-
     const results = [];
 
     // ลูปเช็คเวอร์ชันจาก IP และ packageName ที่ได้รับ
@@ -36,7 +36,7 @@ export async function POST(req) {
             }
           }
 
-          resolve({ ip, packageName, currentVersion });
+          resolve({ ip, packageName, version });
         });
       });
 
