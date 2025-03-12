@@ -1,7 +1,6 @@
 "use client";  // ✅ จำเป็นสำหรับ Next.js Client Component
 
 import { useState, useEffect } from "react";
-import Navbar from "../Components/Navbartab";
 
 export default function adbcommand() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -630,7 +629,6 @@ const handleOpenAllApps = async () => {
 
 return (
   <div>
-    <Navbar />
     <main className="flex flex-col items-center justify-start min-h-screen p-4 gap-5 sm:p-10 mt-[80px]">
       
       {/* ข้อความไฟล์ที่มีอยู่ */}

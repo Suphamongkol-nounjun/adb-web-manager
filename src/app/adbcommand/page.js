@@ -1,7 +1,6 @@
 "use client";  // ✅ จำเป็นสำหรับ Next.js Client Component
 
 import { useState, useEffect } from "react";
-import Navbar from "../Components/Navbartab";
 
 export default function Home() {
   const [devices, setDevices] = useState([]);
@@ -316,7 +315,6 @@ export default function Home() {
 
   return (
     <div>
-      <Navbar />
       <main className="min-h-screen flex flex-col items-center justify-center p-8 gap-7 sm:p-20">
         {/* ปุ่ม Scan Network */}
         <button
