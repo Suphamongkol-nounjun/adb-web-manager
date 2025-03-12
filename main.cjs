@@ -1,14 +1,14 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const { exec } = require('child_process');
-const dotenv = require('dotenv');
+// const dotenv = require('dotenv');
 
 // โหลด environment variables
-dotenv.config();
+// dotenv.config();
 let win;
-const environment = process.env.NEXT_PUBLIC_ENV || 'dev'; 
+// const environment = process.env.NEXT_PUBLIC_ENV || 'dev'; 
 // const environment = process.env.NEXT_PUBLIC_ENV || 'dev';
-//   console.log(`Environment: ${environment}`);
+//   // console.log(`Environment: ${environment}`);
 
 function createWindow() {
   win = new BrowserWindow({
@@ -16,38 +16,46 @@ function createWindow() {
     height: 800,
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false, // ปิด context isolation เพื่อใช้ console.log
+      contextIsolation: false, // ปิด context isolation เพื่อใช้ // console.log
     },
   });
 
 
-
-console.log(`Running in ${environment} mode`);
   // ตรวจสอบ environment ว่าเป็นอะไร
   
 
-  // โหลดแอปจาก server localhost ใน development
-  if (environment === 'dev') {
-    win.loadURL('http://localhost:3000');
-    console.log('Running in Development Mode');
-  } 
-  // สำหรับ UAT
-  else if (environment === 'uat') {
-    win.loadURL('http://localhost:3000');
-    console.log('Running in UAT Mode');
-    win.webContents.closeDevTools();
-  } 
-  // สำหรับ Production
-  else if (environment === 'prod') {
-    win.loadURL('http://localhost:3000');
-    console.log('Running in Production Mode');
-    win.webContents.closeDevTools();
-  } 
-  // ค่าเริ่มต้นหรือ fallback
-  else {
-    win.loadURL('http://localhost:3000');
-    console.log('Running in Unknown Environment, Fallback to Development');
-  }
+  // // โหลดแอปจาก server localhost ใน development
+  // if (environment === 'dev') {
+  //   win.loadURL('http://localhost:3000');
+  //   // console.log('Running in Development Mode');
+  // } 
+  // // สำหรับ UAT
+  // else if (environment === 'uat') {
+  //   win.loadURL('http://localhost:3000');
+  //   // console.log('Running in UAT Mode');
+  //   win.webContents.closeDevTools();
+  // } 
+  // // สำหรับ Production
+  // else if (environment === 'prod') {
+  //   win.loadURL('http://localhost:3000');
+  //   // // console.log('Running in Production Mode');
+  //   win.webContents.closeDevTools();
+  // } 
+  // // ค่าเริ่มต้นหรือ fallback
+  // else {
+  //   win.loadURL('http://localhost:3000');
+  //   // console.log('Running in Unknown Environment, Fallback to Development');
+  // }
+  
+
+  // โหลด URL ของแอปที่ทำงานอยู่ที่ localhost
+  win.loadURL('http://localhost:3000'); // ตรวจสอบว่าแอป React/Next.js รันอยู่ที่นี้หรือไม่
+
+  // ถ้าคุณใช้ไฟล์ build ใน production
+  // const prodPath = path.join(__dirname, 'build/production', 'index.html');
+  // win.loadFile(prodPath);
+
+  console.log('Application is running');
 
   win.on('closed', () => {
     win = null;
@@ -61,7 +69,7 @@ app.whenReady().then(() => {
       console.error(`exec error: ${err}`);
       return;
     }
-    console.log(`stdout: ${stdout}`);
+    // console.log(`stdout: ${stdout}`);
     console.error(`stderr: ${stderr}`);
   });
 
@@ -72,7 +80,7 @@ app.whenReady().then(() => {
     // ปิดเซิร์ฟเวอร์ Next.js ถ้ามี
     if (serverProcess) {
       serverProcess.kill();
-      console.log('Server stopped.');
+      // console.log('Server stopped.');
     }
   
     // ปิดโปรเซส ADB ถ้ามี
@@ -81,7 +89,7 @@ app.whenReady().then(() => {
         console.error(`ADB kill error: ${err}`);
         return;
       }
-      console.log('ADB process terminated.');
+      // console.log('ADB process terminated.');
     });
   
     // ปิดโปรเซส Node ถ้ามี
@@ -90,7 +98,7 @@ app.whenReady().then(() => {
         console.error(`Node kill error: ${err}`);
         return;
       }
-      console.log('Node process terminated.');
+      // console.log('Node process terminated.');
     });
   
     if (process.platform !== 'darwin') {
