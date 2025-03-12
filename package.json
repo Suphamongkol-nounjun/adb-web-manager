@@ -11,22 +11,13 @@
     "build": "next build",
     "start": "next start",
     "build:dev": "next build",
-    "build:uat": "cross-env NEXT_PUBLIC_ENV=uat next build",
-    "build:prod": "cross-env NEXT_PUBLIC_ENV=prod next build",
-    "start:dev": "next start -p 3000",
-    "start:uat": "next start -p 4000",
-    "start:prod": "next start -p 5000",
     "package": "electron-builder",
     "clean": "rimraf build",
-    "package:dev": "npm run clean && npm run build:dev &&  electron-builder",
-    "package:uat": "npm run clean && npm run build:uat && cross-env NEXT_PUBLIC_ENV=uat electron-builder",
-    "package:prod": "npm run clean && npm run build:prod && cross-env NEXT_PUBLIC_ENV=prod electron-builder",
-    "electron": "cross-env NEXT_PUBLIC_ENV=uat electron .",
-    "electron:dev": "npm run clean && npm run build:dev && cross-env NEXT_PUBLIC_ENV=dev electron .",
-    "electron:uat": "npm run clean && npm run build:uat && cross-env NEXT_PUBLIC_ENV=uat electron .",
-    "electron:prod": "npm run clean &&  npm run build:prod && cross-env NEXT_PUBLIC_ENV=prod electron .",
-    "lint": "next lint",
-    "testenv": "cross-env NEXT_PUBLIC_ENV=prod node checkenv.cjs"
+    "package:dev": "npm run clean && npm run build &&  electron-builder",
+    "electron": "electron .",
+    "electron:dev": "npm run clean && npm run build && electron .",
+    "lint": "next lint"
+ 
 
   },
   "dependencies": {

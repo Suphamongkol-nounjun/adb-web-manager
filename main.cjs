@@ -1,14 +1,9 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const { exec } = require('child_process');
-// const dotenv = require('dotenv');
 
-// โหลด environment variables
-// dotenv.config();
+
 let win;
-// const environment = process.env.NEXT_PUBLIC_ENV || 'dev'; 
-// const environment = process.env.NEXT_PUBLIC_ENV || 'dev';
-//   // console.log(`Environment: ${environment}`);
 
 function createWindow() {
   win = new BrowserWindow({
@@ -21,41 +16,8 @@ function createWindow() {
   });
 
 
-  // ตรวจสอบ environment ว่าเป็นอะไร
-  
+  win.loadURL('http://localhost:3000'); 
 
-  // // โหลดแอปจาก server localhost ใน development
-  // if (environment === 'dev') {
-  //   win.loadURL('http://localhost:3000');
-  //   // console.log('Running in Development Mode');
-  // } 
-  // // สำหรับ UAT
-  // else if (environment === 'uat') {
-  //   win.loadURL('http://localhost:3000');
-  //   // console.log('Running in UAT Mode');
-  //   win.webContents.closeDevTools();
-  // } 
-  // // สำหรับ Production
-  // else if (environment === 'prod') {
-  //   win.loadURL('http://localhost:3000');
-  //   // // console.log('Running in Production Mode');
-  //   win.webContents.closeDevTools();
-  // } 
-  // // ค่าเริ่มต้นหรือ fallback
-  // else {
-  //   win.loadURL('http://localhost:3000');
-  //   // console.log('Running in Unknown Environment, Fallback to Development');
-  // }
-  
-
-  // โหลด URL ของแอปที่ทำงานอยู่ที่ localhost
-  win.loadURL('http://localhost:3000'); // ตรวจสอบว่าแอป React/Next.js รันอยู่ที่นี้หรือไม่
-
-  // ถ้าคุณใช้ไฟล์ build ใน production
-  // const prodPath = path.join(__dirname, 'build/production', 'index.html');
-  // win.loadFile(prodPath);
-
-  console.log('Application is running');
 
   win.on('closed', () => {
     win = null;
