@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",  // ระบุ baseUrl ให้เป็น root directory ของโปรเจกต์
     "paths": {
       "@/*": ["./src/*"]
     }
