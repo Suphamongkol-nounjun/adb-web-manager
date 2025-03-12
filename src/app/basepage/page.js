@@ -1,7 +1,7 @@
 "use client";  // ✅ จำเป็นสำหรับ Next.js Client Component
 
 import { useState, useEffect } from "react";
-import Navbar from "@/app/components/navbar";
+import Navbar from "@/app/Components/navbar";
 import { Modal, Box, Button, Typography } from '@mui/material';
 import { modalStyle, modalbuttonStyle,modalhoverButtonStyle } from "./modalStyle";
 

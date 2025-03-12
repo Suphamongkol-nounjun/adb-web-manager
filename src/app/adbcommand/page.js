@@ -1,7 +1,7 @@
 "use client";  // ✅ จำเป็นสำหรับ Next.js Client Component
 
 import { useState, useEffect } from "react";
-import Navbar from "../components/navbar";
+import Navbar from "../Components/Navbartab";
 
 export default function Home() {
   const [devices, setDevices] = useState([]);

@@ -1,8 +1,7 @@
 "use client";  // ✅ จำเป็นสำหรับ Next.js Client Component
 
 import { useState, useEffect } from "react";
-import Navbar from "@/app/components/navbar";
-import { version } from "os";
+import Navbar from "../Components/Navbartab";
 
 export default function adbcommand() {
   const [selectedFile, setSelectedFile] = useState(null);
