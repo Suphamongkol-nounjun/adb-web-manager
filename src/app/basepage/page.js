@@ -1,7 +1,6 @@
 "use client";  // ✅ จำเป็นสำหรับ Next.js Client Component
 
 import { useState, useEffect } from "react";
-import Navbar from "@/app/Components/navbar";
 import { Modal, Box, Button, Typography } from '@mui/material';
 import { modalStyle, modalbuttonStyle,modalhoverButtonStyle } from "./modalStyle";
 
@@ -375,7 +374,6 @@ useEffect(() => {
 
 return (
   <div>
-    <Navbar />
     <main className="flex flex-col items-center justify-start min-h-screen p-4 gap-5 sm:p-10 mt-[80px]">
             {/* ข้อความเตือนเกี่ยวกับการเลือกแอปพลิเคชัน */}
             <div className="alert-message text-center mb-4 text-yellow-600 font-medium">
