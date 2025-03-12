@@ -13,9 +13,9 @@ export default function Home() {
 
     const fetchLocalIp = async () => {
       try {
-        const response = await fetch("/api/scanadbnetwork");
+        const response = await fetch("/api/network/scanadbnetwork");
         const data = await response.json();
-        console.log("Local IP Response:", data); // log ข้อความจาก API
+        //  console.log("Local IP Response:", data); // log ข้อความจาก API
         setLogMessage(JSON.stringify(data, null, 2)); // แสดง JSON ที่ได้รับจาก API
         if (data.ip) {
           setLocalIp(data.ip);
@@ -32,9 +32,72 @@ export default function Home() {
     // โหลดข้อมูลจาก localStorage ตอนเปิดหน้า
     const savedDevices = localStorage.getItem("adbDevices");
     if (savedDevices) {
-      setDevices(JSON.parse(savedDevices));
+      let devicesList = JSON.parse(savedDevices);
+      setDevices(devicesList);
+      fetchAdbDevices(devicesList); // ส่ง devicesList ไปให้ฟังก์ชัน fetchAdbDevices
     }
-  }, []);
+  }, []); // ✅ ทำงานเมื่อโหลดหน้า
+  
+  const fetchAdbDevices = async (devicesList) => {
+    try {
+      const response = await fetch("/api/adbcommand/adbdevices", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+  
+      if (!response.ok) throw new Error("Error fetching ADB devices");
+  
+      const data = await response.json();
+      const adbDevices = data.devices;
+  
+      // อัปเดตสถานะของอุปกรณ์จาก API โดยไม่ต้อง map ใหม่ทั้งหมด
+      const updatedDevicesList = devicesList.map((device) => {
+        // ตัดพอร์ตออกจาก IP ก่อนการเปรียบเทียบ
+        const deviceIp = device.ip.split(":")[0]; // ถ้าเป็น 192.168.2.166:5555 จะได้ 192.168.2.166
+        const adbDevice = adbDevices.find((d) => {
+          const adbDeviceIp = d.deviceId.split(":")[0]; // ตัดพอร์ตออกจาก adbDevice.deviceId
+          return adbDeviceIp === deviceIp; // เปรียบเทียบแค่ IP
+        });
+  
+        if (adbDevice) {
+          let newStatus = device.status; // คงสถานะเดิม
+  
+          // ถ้าสถานะเป็น 'device' อัปเดตเป็น 'connect'
+          if (adbDevice.status === "device") {
+            newStatus = "Connect";
+          }
+          // ถ้าสถานะเป็น 'unauthorized' อัปเดตเป็น 'unauthorized'
+          else if (adbDevice.status === "unauthorized") {
+            newStatus = "Unauthorized";
+          }
+          // ถ้าสถานะเป็น 'offline' คงเป็น 'offline'
+          else if (adbDevice.status === "offline") {
+            newStatus = "Disconnect";
+          }
+          else if (adbDevice.status === "Disconnect") {
+            newStatus = "Disconnect";
+          }
+          else if (adbDevice.status === "") {
+            newStatus = "Disconnect";
+          }
+  
+          // อัปเดตสถานะใน devicesList
+          return { ...device, status: newStatus }; // อัปเดตสถานะ
+        } else {
+          // ถ้าไม่พบอุปกรณ์ใน adbDevices, ให้เปลี่ยนสถานะเป็น "offline"
+          return { ...device, status: "Disconnect" }; // อัปเดตสถานะเป็น offline
+        }
+      });
+  
+      // อัปเดต devices
+      setDevices(updatedDevicesList);
+      updateLocalStorage(updatedDevicesList); // อัปเดต localStorage
+      //  console.log("Updated Devices List:", updatedDevicesList);
+    } catch (error) {
+      console.error("Error fetching ADB devices:", error);
+    }
+  };
+  
 
   const scanNetwork = async () => {
     if (!localIp) {
@@ -45,14 +108,14 @@ export default function Home() {
     setScanning(true);
     try {
       // เรียก API สำหรับการสแกน Network
-      const response = await fetch("/api/scanadbnetwork", {
+      const response = await fetch("/api/network/scanadbnetwork", {
         method: "POST",
         body: JSON.stringify({ ip: localIp }),
         headers: { "Content-Type": "application/json" },
       });
   
       const networkData = await response.json();
-      console.log("Scan Network Response:", networkData);
+      //  console.log("Scan Network Response:", networkData);
   
       if (response.status !== 200) {
         setLogMessage("เกิดข้อผิดพลาดในการสแกน");
@@ -60,9 +123,9 @@ export default function Home() {
       }
   
       // เรียก API เพื่อเช็คอุปกรณ์ที่เชื่อมต่อผ่าน ADB
-      const adbResponse = await fetch("/api/adbdevices");
+      const adbResponse = await fetch("/api/adbcommand/adbdevices");
       const adbData = await adbResponse.json();
-      console.log("ADB Devices Response:", adbData);
+      //  console.log("ADB Devices Response:", adbData);
   
       // ดึงรายการ deviceId จาก ADB Devices เพื่อเปรียบเทียบ
       const adbDevicesMap = new Map(adbData.devices.map((adb) => [adb.deviceId, adb.status]));
@@ -110,18 +173,20 @@ export default function Home() {
   
   const connectDevice = async (deviceIp) => {
     try {
-      const response = await fetch("/api/adbconnect", {
+      const response = await fetch("/api/adbcommand/adbconnect", {
         method: "POST",
         body: JSON.stringify({ ip: deviceIp }),
         headers: { "Content-Type": "application/json" },
       });
   
       const data = await response.json();
-      console.log("Connect Device Response:", data);
+      //  console.log("Connect Device Response:", data);
   
       if (response.status === 200) {
         const updatedDevices = devices.map((device) =>
-          device.ip === deviceIp ? { ...device, status: "Connect" } : device
+          device.ip === deviceIp
+            ? { ...device, status: data.status === "can't connect" ? "Disconnect" : "Connect" }
+            : device
         );
         setDevices(updatedDevices);
         updateLocalStorage(updatedDevices); // อัปเดต localStorage
@@ -137,14 +202,14 @@ export default function Home() {
   
   const disconnectDevice = async (deviceIp) => {
     try {
-      const response = await fetch("/api/adbdisconnect", {
+      const response = await fetch("/api/adbcommand/adbdisconnect", {
         method: "POST",
         body: JSON.stringify({ ip: deviceIp }),
         headers: { "Content-Type": "application/json" },
       });
   
       const data = await response.json();
-      console.log("Disconnect Device Response:", data);
+      //  console.log("Disconnect Device Response:", data);
   
       if (response.status === 200) {
         const updatedDevices = devices.map((device) =>
@@ -177,7 +242,7 @@ export default function Home() {
     }));
   
     try {
-      const response = await fetch("/api/adbconnectall", {
+      const response = await fetch("/api/adbcommand/adbconnectall", {
         method: "POST",
         body: JSON.stringify(devicesToConnect),
         headers: {
@@ -186,7 +251,7 @@ export default function Home() {
       });
   
       const data = await response.json();
-      console.log("Connect All Devices Response:", data);
+      //  console.log("Connect All Devices Response:", data);
       setLogMessage(JSON.stringify(data, null, 2));
   
       if (response.status === 200) {
@@ -215,7 +280,7 @@ export default function Home() {
     }));
   
     try {
-      const response = await fetch("/api/adbdisconnectall", {
+      const response = await fetch("/api/adbcommand/adbdisconnectall", {
         method: "POST",
         body: JSON.stringify(devicesToDisconnect),
         headers: {
@@ -224,7 +289,7 @@ export default function Home() {
       });
   
       const data = await response.json();
-      console.log("Disconnect All Devices Response:", data);
+      //  console.log("Disconnect All Devices Response:", data);
       setLogMessage(JSON.stringify(data, null, 2));
   
       if (response.status === 200) {
@@ -246,7 +311,7 @@ export default function Home() {
     
 
   useEffect(() => {
-    console.log("Log message:", logMessage); // ตรวจสอบค่า logMessage
+    //  console.log("Log message:", logMessage); // ตรวจสอบค่า logMessage
   }, [logMessage]); // ทำงานทุกครั้งที่ logMessage เปลี่ยนแปลง
 
   return (
@@ -330,21 +395,29 @@ export default function Home() {
             Disconnect all devices
           </button>
         </div>
-        {/* Adb command group button */}
-        <div className="mt-8 w-full max-w-4xl border p-6 rounded-lg border-gray-300 shadow-lg">
+{/* Adb command group button */}
+<div className="mt-8 w-full max-w-4xl border p-6 rounded-lg border-gray-300 shadow-lg">
   <h3 className="font-semibold text-xl mb-4 text-center">ADB Command</h3>
-  <div className="flex justify-center gap-4">
+  <div className="flex flex-wrap justify-center gap-4">
     <a href="/adbcommand/install" className="px-6 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 text-center">
-      Install / Uninstall
+      Install / Uninstall / Open App
     </a>
-    <a href="/open-app" className="px-6 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 text-center">
-      Open App
+    <a href="/adbcommand/openforceclear" className="px-6 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 text-center">
+      Open App / Force Stop / Clear Data
     </a>
     <a href="/disable-bluetooth" className="px-6 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 text-center">
-      Disable Bluetooth
+      Disable App
     </a>
+    {/* ปุ่มสุดท้ายจะไปอยู่แถวใหม่ */}
+    <div className="w-full text-center">
+      <a href="/disable-bluetooth" className="px-6 py-3 bg-blue-500 text-white rounded hover:bg-blue-600">
+        Disable App
+      </a>
+    </div>
   </div>
 </div>
+
+
 
         
 

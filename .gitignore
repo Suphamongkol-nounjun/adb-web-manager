@@ -20,6 +20,8 @@
 #jsonscannetworka
 /src/app/json
 
+/src/platform-tools/adb/
+
 # production
 /build
 
