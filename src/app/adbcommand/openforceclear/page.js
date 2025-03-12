@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Navbar from "@/app/components/navbar";
 import { Modal, Box, Button, Typography } from '@mui/material';
-import { modalStyle, modalbuttonStyle,modalhoverButtonStyle } from "./modalstyle";
+import { modalStyle, modalbuttonStyle,modalhoverButtonStyle } from "../openforceclear/modalStyle";
 
 export default function adbcommand() {
   const [selectedFile, setSelectedFile] = useState(null);
