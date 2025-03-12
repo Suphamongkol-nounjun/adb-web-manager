@@ -7,13 +7,26 @@
   "description": "A web manager for ADB",
   "author": "Mint@notero",
   "scripts": {
-    "build:dev": "concurrently \"next build && next start\" \"electron .\"",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "electron": "electron .",
-    "start-electron": "npm run build && npm run start & electron .",
-    "package": "electron-builder"
+    "build:dev": "cross-env NEXT_PUBLIC_ENV=dev next build",
+    "build:uat": "cross-env NEXT_PUBLIC_ENV=uat next build",
+    "build:prod": "cross-env NEXT_PUBLIC_ENV=prod next build",
+    "start:dev": "next start -p 3000",
+    "start:uat": "next start -p 4000",
+    "start:prod": "next start -p 5000",
+    "package": "electron-builder",
+    "clean": "rimraf build",
+    "package:dev": "npm run clean && npm run build:dev &&  electron-builder",
+    "package:uat": "npm run clean && npm run build:uat && cross-env NEXT_PUBLIC_ENV=uat electron-builder",
+    "package:prod": "npm run clean && npm run build:prod && cross-env NEXT_PUBLIC_ENV=prod electron-builder",
+    "electron": "cross-env NEXT_PUBLIC_ENV=uat electron .",
+    "electron:dev": "npm run clean && npm run build:dev && cross-env NEXT_PUBLIC_ENV=dev electron .",
+    "electron:uat": "npm run clean && npm run build:uat && cross-env NEXT_PUBLIC_ENV=uat electron .",
+    "electron:prod": "npm run clean &&  npm run build:prod && cross-env NEXT_PUBLIC_ENV=prod electron .",
+    "lint": "next lint",
+    "testenv": "cross-env NEXT_PUBLIC_ENV=prod node checkenv.cjs"
 
   },
   "dependencies": {
@@ -21,10 +34,11 @@
     "@emotion/styled": "^11.14.0",
     "@mui/material": "^6.4.7",
     "busboy": "^1.6.0",
+    "dotenv": "^16.4.7",
     "formidable": "^3.5.2",
     "lucide-react": "^0.477.0",
     "multer": "^1.4.5-lts.1",
-    "next": "15.1.7",
+    "next": "^15.1.7",
     "node-nmap": "^4.0.0",
     "ping": "^0.4.4",
     "react": "^19.0.0",
@@ -35,26 +49,29 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
     "electron": "^35.0.1",
     "electron-builder": "^25.1.8",
     "eslint": "^9",
     "eslint-config-next": "15.1.7",
     "postcss": "^8",
+    "rimraf": "^6.0.1",
     "tailwindcss": "^3.4.1"
   },
   "build": {
+    "asar": true,
+    "compression": "store",
     "appId": "com.adb.webmanager",
     "productName": "ADB Web Manager",
     "files": [
       "main.cjs",
       "package.json",
-      ".next/**/*",
+      "build/dev/**/*",
       "public/**/*",
       "node_modules/**/*"
     ],
     "directories": {
-      "output": "dist"
+      "output": "build/exe"
     },
     "win": {
       "target": "nsis"

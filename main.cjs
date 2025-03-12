@@ -1,13 +1,106 @@
-const { app, BrowserWindow } = require("electron");
-const path = require("path");
+const { app, BrowserWindow } = require('electron');
+const path = require('path');
+const { exec } = require('child_process');
+const dotenv = require('dotenv');
+
+// โหลด environment variables
+dotenv.config();
+let win;
+const environment = process.env.NEXT_PUBLIC_ENV || 'dev'; 
+// const environment = process.env.NEXT_PUBLIC_ENV || 'dev';
+//   console.log(`Environment: ${environment}`);
 
 function createWindow() {
-  const win = new BrowserWindow({
-    width: 800,
-    height: 600,
+  win = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false, // ปิด context isolation เพื่อใช้ console.log
+    },
   });
 
-  win.loadURL("http://localhost:3000"); // URL ของ Next.js ที่รันอยู่
+
+
+console.log(`Running in ${environment} mode`);
+  // ตรวจสอบ environment ว่าเป็นอะไร
+  
+
+  // โหลดแอปจาก server localhost ใน development
+  if (environment === 'dev') {
+    win.loadURL('http://localhost:3000');
+    console.log('Running in Development Mode');
+  } 
+  // สำหรับ UAT
+  else if (environment === 'uat') {
+    win.loadURL('http://localhost:3000');
+    console.log('Running in UAT Mode');
+    win.webContents.closeDevTools();
+  } 
+  // สำหรับ Production
+  else if (environment === 'prod') {
+    win.loadURL('http://localhost:3000');
+    console.log('Running in Production Mode');
+    win.webContents.closeDevTools();
+  } 
+  // ค่าเริ่มต้นหรือ fallback
+  else {
+    win.loadURL('http://localhost:3000');
+    console.log('Running in Unknown Environment, Fallback to Development');
+  }
+
+  win.on('closed', () => {
+    win = null;
+  });
 }
 
-app.on("ready", createWindow);
+app.whenReady().then(() => {
+  // เริ่มเซิร์ฟเวอร์ Next.js ในเบื้องหลังหากยังไม่ได้เริ่ม
+  const serverProcess = exec('npm run start', (err, stdout, stderr) => {
+    if (err) {
+      console.error(`exec error: ${err}`);
+      return;
+    }
+    console.log(`stdout: ${stdout}`);
+    console.error(`stderr: ${stderr}`);
+  });
+
+  createWindow();
+
+  // จัดการเมื่อปิดหน้าต่าง
+  app.on('window-all-closed', () => {
+    // ปิดเซิร์ฟเวอร์ Next.js ถ้ามี
+    if (serverProcess) {
+      serverProcess.kill();
+      console.log('Server stopped.');
+    }
+  
+    // ปิดโปรเซส ADB ถ้ามี
+    exec('taskkill /F /IM adb.exe', (err, stdout, stderr) => {
+      if (err) {
+        console.error(`ADB kill error: ${err}`);
+        return;
+      }
+      console.log('ADB process terminated.');
+    });
+  
+    // ปิดโปรเซส Node ถ้ามี
+    exec('taskkill /F /IM node.exe', (err, stdout, stderr) => {
+      if (err) {
+        console.error(`Node kill error: ${err}`);
+        return;
+      }
+      console.log('Node process terminated.');
+    });
+  
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
+  });
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
+});
