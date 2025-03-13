@@ -44,6 +44,17 @@ app.whenReady().then(() => {
       serverProcess.kill();
       // console.log('Server stopped.');
     }
+
+       // ปิดโปรเซส ADB ถ้ามี
+       exec('taskkill /F /IM "ADB Web Manager.exe"', (err, stdout, stderr) => {
+        if (err) {
+          console.error(`ADB kill error: ${err}`);
+          return;
+        }
+        // console.log('ADB process terminated.');
+      });
+
+    
   
     // ปิดโปรเซส ADB ถ้ามี
     exec('taskkill /F /IM adb.exe', (err, stdout, stderr) => {
