@@ -10,15 +10,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "build:dev": "next build",
+    "build:prod": "next build && npm run postbuild",
+    "prod": "node .next/standalone/server.js",
     "package": "electron-builder",
     "clean": "rimraf build",
     "package:dev": "npm run clean && npm run build &&  electron-builder",
     "electron": "electron .",
     "electron:dev": "npm run clean && npm run build && electron .",
-    "lint": "next lint"
- 
-
+    "lint": "next lint",
+    "postbuild": "xcopy /E /I /Y public .next\\standalone\\public && xcopy /E /I /Y .next\\static .next\\standalone\\.next\\static && xcopy /E /I /Y src\\build-tools .next\\standalone\\src\\build-tools && xcopy /E /I /Y src\\platform-tools .next\\standalone\\src\\platform-tools"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -26,6 +26,7 @@
     "@mui/material": "^6.4.7",
     "busboy": "^1.6.0",
     "dotenv": "^16.4.7",
+    "electron-tray": "^0.1.1",
     "formidable": "^3.5.2",
     "lucide-react": "^0.477.0",
     "multer": "^1.4.5-lts.1",
@@ -40,6 +41,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "cpx": "^1.5.0",
     "cross-env": "^7.0.3",
     "electron": "^35.0.1",
     "electron-builder": "^25.1.8",
@@ -54,18 +56,26 @@
     "compression": "store",
     "appId": "com.adb.webmanager",
     "productName": "ADB Web Manager",
-    "files": [
-      "main.cjs",
-      "package.json",
-      ".next/**/*",
-      "public/**/*",
-      "node_modules/**/*"
-    ],
     "directories": {
       "output": "build/exe"
     },
-    "win": {
-      "target": "nsis"
+    "files": [
+      "main.cjs",
+      "package.json"
+    ],
+    "extraFiles": [
+      {
+        "from": ".next/standalone",
+        "to": "standalone"
+      }
+    ],
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ADB Web Manager",
+      "runAfterFinish": true
     }
   }
 }
