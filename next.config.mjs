@@ -4,6 +4,7 @@ const nextConfig = {
     // : process.env.NEXT_PUBLIC_ENV === 'uat'
     // ? 'build/uat'
     // : 'build/dev', // Default to 'development'
+    output: "standalone",
     reactStrictMode: true,
     experimental: {
     },
