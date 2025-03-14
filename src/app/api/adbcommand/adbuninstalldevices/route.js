@@ -38,7 +38,7 @@ export async function POST(req) {
 
               try {
                 const result = await new Promise((resolve) => {
-                  exec(`${adbPath} -s ${ip} uninstall ${packageName}`, (err, stdout, stderr) => {
+                  exec(`"${adbPath}" -s ${ip} uninstall ${packageName}`, (err, stdout, stderr) => {
                     let status = 'ถอนการติดตั้งสำเร็จ';
                     let message = `ถอนการติดตั้ง APK ที่ ${packageName} บนอุปกรณ์ที่ ${ip} สำเร็จ`;
                     let adbMessage = `adb message: ${stdout || stderr}`;

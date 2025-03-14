@@ -18,7 +18,7 @@ export async function POST(req) {
     console.log(`🌐 กำลังยกเลิกการเชื่อมต่อ ADB ไปที่ ${ip}`);
 
     const result = await new Promise((resolve) => {
-      exec(`${adbPath} disconnect ${ip}`, (error, stdout, stderr) => {
+      exec(`"${adbPath}" disconnect ${ip}`, (error, stdout, stderr) => {
         let status = 'disconnected'; // ค่าเริ่มต้นเป็นเชื่อมต่อสำเร็จ
         let message = `ยกเลิกการเชื่อมต่อ ADB กับ ${ip} สำเร็จ`;
         let meaagefromadb = `adb message: ${stdout}`;

@@ -18,7 +18,7 @@ export async function POST(req) {
     console.log(`🌐 กำลังเชื่อมต่อ ADB ไปที่ ${ip}`);
 
     const result = await new Promise((resolve) => {
-      exec(`${adbPath} connect ${ip}`, (error, stdout, stderr) => {
+      exec(`"${adbPath}" connect ${ip}`, (error, stdout, stderr) => {
         let status = 'connected'; // ค่าเริ่มต้นเป็นเชื่อมต่อสำเร็จ
         let message = `เชื่อมต่อ ADB กับ ${ip} สำเร็จ`;
         let meaagefromadb = `adb message: ${stdout}`;

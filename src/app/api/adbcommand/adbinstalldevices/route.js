@@ -59,16 +59,16 @@ export async function POST(req) {
               JSON.stringify({
                 ip,
                 status: "กำลังติดตั้ง",
-                message: `🌐 กำลังติดตั้ง APK ที่ ${apkPath} บนอุปกรณ์ที่มี IP: ${ip}`,
+                message: `🌐 กำลังติดตั้ง APK ที่ "${apkPath}" บนอุปกรณ์ที่มี IP: ${ip}`,
               }) + "\n"
             );
 
             return new Promise((resolve) => {
               exec(
-                `${adbPath} -s ${ip} install ${apkPath}`,
+                `"${adbPath}" -s ${ip} install "${apkPath}"`,
                 (err, stdout, stderr) => {
                   let status = "ติดตั้งสำเร็จ";
-                  let message = `✅ ติดตั้ง APK ที่ ${apkPath} บนอุปกรณ์ ${ip} สำเร็จ`;
+                  let message = `✅ ติดตั้ง APK ที่ "${apkPath}" บนอุปกรณ์ ${ip} สำเร็จ`;
                   let versionDevice = version;
 
                   if (err || stderr) {

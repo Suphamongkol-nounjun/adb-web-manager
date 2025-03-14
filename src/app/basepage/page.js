@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Modal, Box, Button, Typography } from '@mui/material';
-import { modalStyle, modalbuttonStyle,modalhoverButtonStyle } from "./modalStyle";
+import { modalStyle, modalbuttonStyle,modalhoverButtonStyle } from "./modalStyle"
 
 export default function adbcommand() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -21,6 +21,7 @@ export default function adbcommand() {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [actionType, setActionType] = useState('');
+  const [searchTerm, setSearchTerm] = useState(""); // ตัวแปรสำหรับเก็บคำค้นหา
 
   const handleOpen = (action) => {
     setActionType(action);
@@ -370,6 +371,10 @@ useEffect(() => {
   const handleSelectChange = (event) => {
     setPackageName(event.target.value);
   };
+
+  const filteredPackages = packageNameall.filter(pkg =>
+    pkg.toLowerCase().includes(searchTerm.toLowerCase()) // ค้นหาคำในทุกตำแหน่ง
+  );
   
 
 return (
@@ -382,35 +387,42 @@ return (
         </p>
       </div>
 
-    <div className="package-dropdown mt-8 w-full max-w-4xl border p-6 rounded-lg border-gray-300 shadow-lg">
-    <h3 className="font-semibold text-xl mb-4 text-center">เลือกแพ็กเกจที่ต้องการ</h3>
-    <div className="relative">
-      <select
-        value={packageName} // ค่า value ต้องเป็น packageName ที่เก็บค่าที่เลือก
-        onChange={handleSelectChange} // ฟังก์ชันสำหรับจัดการเมื่อเลือก
-        className="block w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-      >
-        <option value="">เลือกแพ็กเกจ</option>
-        {packageNameall.length > 0 ? (
-          packageNameall.map((pkg) => (
-            <option key={pkg} value={pkg} className="hover:bg-gray-200">
-              {pkg} {/* แสดงรายการแพ็กเกจจาก packageNameall */}
-            </option>
-          ))
-        ) : (
-          <option disabled>ไม่มีข้อมูล</option> // กรณีไม่มีข้อมูล
+      <div className="package-dropdown mt-8 w-full max-w-4xl border p-6 rounded-lg border-gray-300 shadow-lg">
+      <h3 className="font-semibold text-xl mb-4 text-center">เลือกแพ็กเกจที่ต้องการ</h3>
+      <div className="relative">
+        <input
+          type="text"
+          placeholder="ค้นหาแพ็กเกจ..."
+          value={searchTerm} // ค่าที่จะพิมพ์ในช่องค้นหา
+          onChange={(e) => setSearchTerm(e.target.value)} // ฟังก์ชันที่ใช้ในการอัปเดตคำค้นหา
+          className="block w-full p-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+
+        <select
+          value={packageName} // ค่าที่เลือกจะถูกเก็บใน packageName
+          onChange={handleSelectChange} // ฟังก์ชันที่ใช้จัดการการเลือกค่า
+          className="block w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">เลือกแพ็กเกจ</option>
+          {filteredPackages.length > 0 ? (
+            filteredPackages.map((pkg) => (
+              <option key={pkg} value={pkg} className="hover:bg-gray-200">
+                {pkg} {/* แสดงแพ็กเกจที่ผ่านการกรอง */}
+              </option>
+            ))
+          ) : (
+            <option disabled>ไม่มีข้อมูล</option> // ถ้าไม่พบข้อมูลจากการค้นหา
+          )}
+        </select>
+
+        {/* แสดงชื่อแพ็กเกจที่เลือก */}
+        {packageName && (
+          <div className="mt-2 text-center text-green-500">
+            <p>แพ็กเกจที่เลือก: {packageName}</p>
+          </div>
         )}
-      </select>
-
-      {/* แสดงชื่อแพ็กเกจที่เลือก */}
-      {packageName && (
-        <div className="mt-2 text-center text-green-500">
-          <p>แพ็กเกจที่เลือก: {packageName}</p>
-        </div>
-      )}
+      </div>
     </div>
-  </div>
-
 
       {/* ตารางแสดงอุปกรณ์ */}
       <h2 className="font-semibold text-lg mt-4">📋 อุปกรณ์ที่พบ:</h2>

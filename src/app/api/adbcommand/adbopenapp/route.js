@@ -23,7 +23,7 @@ export async function POST(req) {
 
             try {
               const result = await new Promise((resolve) => {
-                exec(`${adbPath} -s ${ip} shell monkey -p ${packageName} 1`, (err, stdout, stderr) => {
+                exec(`"${adbPath}" -s ${ip} shell monkey -p ${packageName} 1`, (err, stdout, stderr) => {
                   let status = 'เปิดแอปไม่สำเร็จ';
                   let message = `ไม่สามารถเปิดแอป ${packageName} บนอุปกรณ์ที่ ${ip} ได้`;
                   let adbMessage = `adb message: ${stdout}`;

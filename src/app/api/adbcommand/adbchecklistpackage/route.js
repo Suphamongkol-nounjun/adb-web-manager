@@ -23,7 +23,7 @@ export async function POST(req) {
       console.log(`🌐 กำลังดึงแพ็กเกจจากอุปกรณ์ ${ip}`); // แสดงข้อความขณะดึงข้อมูล
 
       const result = await new Promise((resolve) => {
-        exec(`${adbPath} -s ${ip} shell pm list packages`, (error, stdout, stderr) => {
+        exec(`"${adbPath}" -s ${ip} shell pm list packages`, (error, stdout, stderr) => {
           let status = 'success'; // ตั้งค่าเริ่มต้นเป็นสำเร็จ
           let packagesList = [];
           let message = `ดึงข้อมูลแพ็กเกจจาก ${ip} สำเร็จ`;

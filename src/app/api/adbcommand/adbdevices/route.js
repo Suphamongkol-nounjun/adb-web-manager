@@ -11,7 +11,7 @@ export async function GET(req) {
 
     // รันคำสั่ง adb devices
     const result = await new Promise((resolve, reject) => {
-      exec(`${adbPath} devices`, (error, stdout, stderr) => {
+      exec(`"${adbPath}" devices`, (error, stdout, stderr) => {
         if (error) {
           reject(`exec error: ${error}`);
         }

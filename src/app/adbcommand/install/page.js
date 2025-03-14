@@ -1,5 +1,6 @@
 "use client";  // ✅ จำเป็นสำหรับ Next.js Client Component
 
+import AdbCommandGroup from "@/app/Components/ADBCommandGroup";
 import { useState, useEffect } from "react";
 
 export default function adbcommand() {
@@ -523,13 +524,19 @@ const handleUninstallAllDevices = async () => {
   }
 };
 
-const handleOpenApp = async (ip, packageName) => {
+const handleOpenApp = async (ip) => {
   try {
+    // ตรวจสอบว่า packageName ถูกกำหนดไว้หรือยัง
+    if (!packageName) {
+      setLogMessage('กรุณาเลือกแพ็กเกจก่อน');
+      return;
+    }
+
     // เรียก API เพื่อเปิดแอป
-    const response = await fetch('/apiadbcommand/adbopenapp', {
+    const response = await fetch('/api/adbcommand/adbopenapp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify([{ ip, packageName }]), // ส่งข้อมูลเฉพาะอุปกรณ์หนึ่งเครื่อง
+      body: JSON.stringify([{ ip, packageName: packageName }]), // ส่งข้อมูล IP และ package ที่เลือก
     });
 
     // ตรวจสอบว่าคำขอสำเร็จหรือไม่
@@ -556,7 +563,7 @@ const handleOpenApp = async (ip, packageName) => {
       messages.forEach((msg) => {
         if (msg) {
           const data = JSON.parse(msg);
-          //  console.log("📢 ตอบกลับจาก API:", data);
+          console.log("📢 ตอบกลับจาก API:", data);
 
           // อัปเดตแค่ status ของอุปกรณ์ที่ตรงกับ IP
           setDevices(prevDevices =>
@@ -690,7 +697,7 @@ return (
             <th className="px-4 py-3">Current Version</th>
             <th className="px-4 py-3">Install</th>
             <th className="px-4 py-3">Uninstall</th>
-            <th className="px-4 py-3">Open App</th>
+            <th className="px-4 py-3 min-w-[150px]">Open App</th>
           </tr>
         </thead>
         <tbody>
@@ -731,7 +738,7 @@ return (
                 <td className="border px-4 py-3 text-center">
                   {/* ปุ่ม Openapp ที่ยังไม่ได้เชื่อมโยงฟังก์ชัน */}
                   <button
-                    onClick={() => handleOpenApp(device.ip, device.packageName)} // เว้นฟังก์ชันเอาไว้
+                    onClick={() => handleOpenApp(device.ip)} // เว้นฟังก์ชันเอาไว้
                     className="px-4 py-2 rounded text-white bg-yellow-500 hover:bg-yellow-600"
                   >
                     Open App
@@ -775,7 +782,7 @@ return (
   </button>
 </div>
 
-
+          <AdbCommandGroup />
       {/* Log ข้อความจาก API */}
       <div className="mt-4 text">
         <p className="font-semibold">Log ข้อความจาก API:</p>

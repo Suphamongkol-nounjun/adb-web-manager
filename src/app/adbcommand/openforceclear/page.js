@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Modal, Box, Button, Typography } from '@mui/material';
 import { modalStyle, modalbuttonStyle,modalhoverButtonStyle } from "../openforceclear/modalStyle";
+import AdbCommandGroup from "@/app/Components/ADBCommandGroup";
 
 export default function adbcommand() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -18,20 +19,36 @@ export default function adbcommand() {
   const [installing, setInstalling] = useState(false);
   const [uninstalling, setUninstalling] = useState(false);
   const [openingApps, setOpeningApps] = useState(false); 
+  const [forcingApps, setforcingApps] = useState(false);
+  const [clearingApps, setclearingApps] = useState(false);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [actionType, setActionType] = useState('');
+  const [searchTerm, setSearchTerm] = useState(""); // ตัวแปรสำหรับเก็บคำค้นหา
+  const [modaldeviceIp, setModalDeviceIp] = useState('');
 
-  const handleOpen = (action) => {
+  const handleOpen = (action, ip) => {
     setActionType(action);
+    setModalDeviceIp(ip)
     setOpen(true);
   };
   const handleClose = () => setOpen(false);
 
   const handleConfirm = () => {
-    // Perform the respective action based on actionType
-    console.log(`${actionType} confirmed`);
-    setOpen(false);
+    if (actionType === 'Force Stop') {
+      handleForceStopDevice(modaldeviceIp);
+    } else if (actionType === 'Clear Data') {
+      handleClearDataDevice(modaldeviceIp);
+    } else if (actionType === 'Clear Data All') {
+      handleClearDataAllDevices();
+    } else if (actionType === 'Force Stop All') {
+      handleForceStopAllDevices();
+    }
+     else {
+      console.warn(`Unknown action type: ${actionType}`);
+    }
+  
+    setOpen(false); // ปิด Modal หลังจากยืนยัน
   };
 
 
@@ -209,23 +226,229 @@ export default function adbcommand() {
   }, []);
   
 
-const handleForceStopDevice = async (deviceIp) => {
+const handleForceStopDevice = async (ip) => {
+  try {
+    // ตรวจสอบว่า packageName ถูกกำหนดไว้หรือยัง
+    if (!packageName) {
+      setLogMessage('กรุณาเลือกแพ็กเกจก่อน');
+      return;
+    }
 
+    // เรียก API เพื่อเปิดแอป
+    const response = await fetch('/api/adbcommand/adbforcestop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify([{ ip, packageName: packageName }]), // ส่งข้อมูล IP และ package ที่เลือก
+    });
+
+    // ตรวจสอบว่าคำขอสำเร็จหรือไม่
+    if (!response.ok) {
+      setLogMessage('เกิดข้อผิดพลาดในการเปิดแอป');
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let done = false;
+    let value = '';
+
+    // อ่านข้อมูลแบบ streaming
+    while (!done) {
+      const { done: doneReading, value: chunk } = await reader.read();
+      done = doneReading;
+      value += decoder.decode(chunk, { stream: true });
+
+      // แยกข้อความที่ได้รับออกเป็นหลายบรรทัด
+      const messages = value.trim().split("\n");
+
+      // ประมวลผลข้อความแต่ละบรรทัด
+      messages.forEach((msg) => {
+        if (msg) {
+          const data = JSON.parse(msg);
+          console.log("📢 ตอบกลับจาก API:", data);
+
+          // อัปเดตแค่ status ของอุปกรณ์ที่ตรงกับ IP
+          setDevices(prevDevices =>
+            prevDevices.map(device => 
+              device.ip === data.ip ? { ...device, status: data.status } : device
+            )
+          );
+          setLogMessage(prev => prev + `\n${data.ip} ${data.status}\n${data.adbMessage}`);
+        }
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error:', error);
+    setLogMessage('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+  }
   };
   
 
 
 const handleForceStopAllDevices = async () => {
+  setforcingApps(true); // เริ่มการติดตั้ง
+  const devicesData = devices.map(device => ({
+    ip: device.ip,
+    packageName: packageName, // เพิ่ม packageName เข้าไปใน JSON
+  }));
 
+  const response = await fetch('/api/adbcommand/adbforcestop', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(devicesData), // ส่งเฉพาะ ip ของอุปกรณ์
+  });
+
+  // ตรวจสอบว่าคำขอสำเร็จ
+  if (!response.ok) {
+    setLogMessage('เกิดข้อผิดพลาด');
+    setOpeningApps(false);
+    return;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let done = false;
+  let value = '';
+
+  // อ่านข้อมูลแบบ streaming
+  while (!done) {
+    const { done: doneReading, value: chunk } = await reader.read();
+    done = doneReading;
+    value += decoder.decode(chunk, { stream: true });
+
+    // แยกข้อความที่ได้รับออกเป็นหลายบรรทัด
+    const messages = value.trim().split("\n");
+
+    // ประมวลผลข้อความแต่ละบรรทัด
+    messages.forEach((msg) => {
+      if (msg) {
+        const data = JSON.parse(msg);
+        console.log("📢 ตอบกลับจาก API:", data);
+
+        // อัปเดตแค่ status ของอุปกรณ์ที่ตรงกับ IP
+        setDevices(prevDevices =>
+          prevDevices.map(device => 
+            device.ip === data.ip ? { ...device, status: data.status } : device
+          )
+        );
+        setLogMessage(prev => prev + `\n${data.ip} ${data.status}\n${data.adbMessage}`);
+      }
+    });
+  }
+
+  setforcingApps(false); // เสร็จสิ้น
 };
 
 
-const handleClearDataDevice = async (deviceIp) => {
-  
+const handleClearDataDevice = async (ip) => {
+  try {
+    // ตรวจสอบว่า packageName ถูกกำหนดไว้หรือยัง
+    if (!packageName) {
+      setLogMessage('กรุณาเลือกแพ็กเกจก่อน');
+      return;
+    }
+
+    // เรียก API เพื่อเปิดแอป
+    const response = await fetch('/api/adbcommand/adbcleardata', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify([{ ip, packageName: packageName }]), // ส่งข้อมูล IP และ package ที่เลือก
+    });
+
+    // ตรวจสอบว่าคำขอสำเร็จหรือไม่
+    if (!response.ok) {
+      setLogMessage('เกิดข้อผิดพลาดในการเปิดแอป');
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let done = false;
+    let value = '';
+
+    // อ่านข้อมูลแบบ streaming
+    while (!done) {
+      const { done: doneReading, value: chunk } = await reader.read();
+      done = doneReading;
+      value += decoder.decode(chunk, { stream: true });
+
+      // แยกข้อความที่ได้รับออกเป็นหลายบรรทัด
+      const messages = value.trim().split("\n");
+
+      // ประมวลผลข้อความแต่ละบรรทัด
+      messages.forEach((msg) => {
+        if (msg) {
+          const data = JSON.parse(msg);
+          console.log("📢 ตอบกลับจาก API:", data);
+
+          // อัปเดตแค่ status ของอุปกรณ์ที่ตรงกับ IP
+          setDevices(prevDevices =>
+            prevDevices.map(device => 
+              device.ip === data.ip ? { ...device, status: data.status } : device
+            )
+          );
+          setLogMessage(prev => prev + `\n${data.ip} ${data.status}\n${data.adbMessage}`);
+        }
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error:', error);
+    setLogMessage('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+  }
 };
 
 const handleClearDataAllDevices = async () => {
-  
+  setclearingApps(true); // เริ่มการติดตั้ง
+  const devicesData = devices.map(device => ({
+    ip: device.ip,
+    packageName: packageName, // เพิ่ม packageName เข้าไปใน JSON
+  }));
+
+  const response = await fetch('/api/adbcommand/adbcleardata', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(devicesData), // ส่งเฉพาะ ip ของอุปกรณ์
+  });
+
+  // ตรวจสอบว่าคำขอสำเร็จ
+  if (!response.ok) {
+    setLogMessage('เกิดข้อผิดพลาด');
+    setOpeningApps(false);
+    return;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let done = false;
+  let value = '';
+
+  // อ่านข้อมูลแบบ streaming
+  while (!done) {
+    const { done: doneReading, value: chunk } = await reader.read();
+    done = doneReading;
+    value += decoder.decode(chunk, { stream: true });
+
+    // แยกข้อความที่ได้รับออกเป็นหลายบรรทัด
+    const messages = value.trim().split("\n");
+
+    // ประมวลผลข้อความแต่ละบรรทัด
+    messages.forEach((msg) => {
+      if (msg) {
+        const data = JSON.parse(msg);
+        console.log("📢 ตอบกลับจาก API:", data);
+
+        // อัปเดตแค่ status ของอุปกรณ์ที่ตรงกับ IP
+        setDevices(prevDevices =>
+          prevDevices.map(device => 
+            device.ip === data.ip ? { ...device, status: data.status } : device
+          )
+        );
+        setLogMessage(prev => prev + `\n${data.ip} ${data.status}\n${data.adbMessage}`);
+      }
+    });
+  }
+
+  setclearingApps(false); // เสร็จสิ้น
 };
 
 const handleOpenApp = async (ip) => {
@@ -370,6 +593,10 @@ useEffect(() => {
   const handleSelectChange = (event) => {
     setPackageName(event.target.value);
   };
+
+  const filteredPackages = packageNameall.filter(pkg =>
+    pkg.toLowerCase().includes(searchTerm.toLowerCase()) // ค้นหาคำในทุกตำแหน่ง
+  );
   
 
 return (
@@ -382,35 +609,42 @@ return (
         </p>
       </div>
 
-    <div className="package-dropdown mt-8 w-full max-w-4xl border p-6 rounded-lg border-gray-300 shadow-lg">
-    <h3 className="font-semibold text-xl mb-4 text-center">เลือกแพ็กเกจที่ต้องการ</h3>
-    <div className="relative">
-      <select
-        value={packageName} // ค่า value ต้องเป็น packageName ที่เก็บค่าที่เลือก
-        onChange={handleSelectChange} // ฟังก์ชันสำหรับจัดการเมื่อเลือก
-        className="block w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-      >
-        <option value="">เลือกแพ็กเกจ</option>
-        {packageNameall.length > 0 ? (
-          packageNameall.map((pkg) => (
-            <option key={pkg} value={pkg} className="hover:bg-gray-200">
-              {pkg} {/* แสดงรายการแพ็กเกจจาก packageNameall */}
-            </option>
-          ))
-        ) : (
-          <option disabled>ไม่มีข้อมูล</option> // กรณีไม่มีข้อมูล
+      <div className="package-dropdown mt-8 w-full max-w-4xl border p-6 rounded-lg border-gray-300 shadow-lg">
+      <h3 className="font-semibold text-xl mb-4 text-center">เลือกแพ็กเกจที่ต้องการ</h3>
+      <div className="relative">
+        <input
+          type="text"
+          placeholder="ค้นหาแพ็กเกจ..."
+          value={searchTerm} // ค่าที่จะพิมพ์ในช่องค้นหา
+          onChange={(e) => setSearchTerm(e.target.value)} // ฟังก์ชันที่ใช้ในการอัปเดตคำค้นหา
+          className="block w-full p-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+
+        <select
+          value={packageName} // ค่าที่เลือกจะถูกเก็บใน packageName
+          onChange={handleSelectChange} // ฟังก์ชันที่ใช้จัดการการเลือกค่า
+          className="block w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">เลือกแพ็กเกจ</option>
+          {filteredPackages.length > 0 ? (
+            filteredPackages.map((pkg) => (
+              <option key={pkg} value={pkg} className="hover:bg-gray-200">
+                {pkg} {/* แสดงแพ็กเกจที่ผ่านการกรอง */}
+              </option>
+            ))
+          ) : (
+            <option disabled>ไม่มีข้อมูล</option> // ถ้าไม่พบข้อมูลจากการค้นหา
+          )}
+        </select>
+
+        {/* แสดงชื่อแพ็กเกจที่เลือก */}
+        {packageName && (
+          <div className="mt-2 text-center text-green-500">
+            <p>แพ็กเกจที่เลือก: {packageName}</p>
+          </div>
         )}
-      </select>
-
-      {/* แสดงชื่อแพ็กเกจที่เลือก */}
-      {packageName && (
-        <div className="mt-2 text-center text-green-500">
-          <p>แพ็กเกจที่เลือก: {packageName}</p>
-        </div>
-      )}
+      </div>
     </div>
-  </div>
-
 
       {/* ตารางแสดงอุปกรณ์ */}
       <h2 className="font-semibold text-lg mt-4">📋 อุปกรณ์ที่พบ:</h2>
@@ -420,10 +654,10 @@ return (
             <th className="px-4 py-3">#</th>
             <th className="px-4 py-3">IP Address</th>
             <th className="px-4 py-3">Device Status</th>
-            <th className="px-4 py-3">Status</th>
-            <th className="px-4 py-3">Froce Stop</th>
-            <th className="px-4 py-3">Clear Data</th>
-            <th className="px-4 py-3">Open App</th>
+            <th className="px-4 py-3 min-w-[220px]">Status</th>
+            <th className="px-4 py-3 min-w-[150px]">Froce Stop</th>
+            <th className="px-4 py-3 min-w-[150px]">Clear Data</th>
+            <th className="px-4 py-3 min-w-[150px]">Open App</th>
           </tr>
         </thead>
         <tbody>
@@ -447,7 +681,7 @@ return (
                 <td className="border px-4 py-3 text-center">{device.status || "N/A"}</td>
                 <td className="border px-4 py-3 text-center">
                   <button
-                    onClick={() => handleOpen('Force Stop')}
+                    onClick={() => handleOpen('Force Stop', device.ip)}
                     sx={{ ...modalbuttonStyle, ...modalhoverButtonStyle, backgroundColor: '#f57c00', color: 'white' }}
                     className="px-4 py-2 rounded text-white bg-orange-500 hover:bg-orange-600"
                   >
@@ -456,7 +690,7 @@ return (
                 </td>
                 <td className="border px-4 py-3 text-center">
                   <button
-                    onClick={() => handleOpen('Clear Data')}
+                    onClick={() => handleOpen('Clear Data', device.ip)}
                     sx={{ ...modalbuttonStyle, ...modalhoverButtonStyle, backgroundColor: '#d32f2f', color: 'white' }}
                     className="px-4 py-2 rounded text-white bg-red-500 hover:bg-red-600"
                   >
@@ -485,21 +719,21 @@ return (
 {/* ปุ่ม Install all devices, Uninstall all devices และ Open all apps */}
 <div className="flex justify-center gap-4 mt-8">
   <button
-    onClick={() => handleOpen('Force Stop')}
+    onClick={() => handleOpen('Force Stop All')}
     sx={{ ...modalbuttonStyle, ...modalhoverButtonStyle, backgroundColor: '#f57c00', color: 'white' }}
-    disabled={installing}
+    disabled={forcingApps}
     className="px-6 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 disabled:bg-gray-400"
   >
-    {installing ? "Force Stopping..." : "Force Stop all devices"}
+    {forcingApps ? "Force Stopping..." : "Force Stop all devices"}
   </button>
 
   <button
-    onClick={() => handleOpen('Clear Data')}
+    onClick={() => handleOpen('Clear Data All')}
     sx={{ ...modalbuttonStyle, ...modalhoverButtonStyle, backgroundColor: '#d32f2f', color: 'white' }}
-    disabled={uninstalling}
+    disabled={clearingApps}
     className="px-6 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-gray-400"
   >
-    {uninstalling ? "Clearing data..." : "Clear Data all devices"}
+    {clearingApps ? "Clearing data..." : "Clear Data all devices"}
   </button>
 
   {/* ปุ่ม Open all apps */}
@@ -512,8 +746,8 @@ return (
   </button>
 </div>
 
-{/* Modal */}
-<Modal
+      {/* Modal */}
+      <Modal
         open={open}
         onClose={handleClose}
         aria-labelledby="modal-title"
@@ -570,6 +804,8 @@ return (
           </div>
         </Box>
       </Modal>
+
+      <AdbCommandGroup />
 
       {/* Log ข้อความจาก API */}
       <div className="mt-4 text">

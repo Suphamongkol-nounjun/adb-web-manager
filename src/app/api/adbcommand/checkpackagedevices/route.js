@@ -23,7 +23,7 @@ export async function POST(req) {
       console.log(`🌐 กำลังตรวจสอบเวอร์ชันของ package ${packageName} ที่ติดตั้งใน ${ip}`);  // แสดงข้อความขณะตรวจสอบ
 
       const result = await new Promise((resolve) => {
-        exec(`${adbPath} -s ${ip} shell dumpsys package ${packageName} | findstr versionName`, (err, stdout, stderr) => {
+        exec(`"${adbPath}" -s ${ip} shell dumpsys package ${packageName} | findstr versionName`, (err, stdout, stderr) => {
           let version = 'ไม่พบเวอร์ชัน';  // ค่าดีฟอลต์เป็น "ไม่พบเวอร์ชัน"
 
           if (err) {

@@ -16,7 +16,7 @@ export async function POST(req) {
 
     // เรียกใช้คำสั่ง aapt dump badging และใช้ findstr เพื่อค้นหา versionName และ package
     const result = await new Promise((resolve, reject) => {
-      exec(`${buildtoolPath} dump badging "${adbtoolPath}/${fileName}" | findstr /i "versionName package"`, (error, stdout, stderr) => {
+      exec(`"${buildtoolPath}" dump badging "${adbtoolPath}/${fileName}" | findstr /i "versionName package"`, (error, stdout, stderr) => {
         if (error) {
           reject(`exec error: ${error}`);
         }
