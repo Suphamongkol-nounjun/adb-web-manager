@@ -2,10 +2,34 @@ const { app, BrowserWindow } = require("electron");
 const { exec } = require("child_process");
 const path = require("path");
 const http = require("http");
+const fs = require("fs");
 
 let serverProcess = null;
 
-function createWindow() {
+// ฟังก์ชันสำหรับเช็คว่าพอร์ตถูกใช้งานหรือยัง
+function isPortInUse(port, callback) {
+  exec(`netstat -ano | findstr :${port}`, (error, stdout, stderr) => {
+    if (error || stderr) {
+      callback(false); // ไม่พบพอร์ตถูกใช้งาน
+    } else {
+      callback(true); // พบว่าพอร์ตถูกใช้งาน
+    }
+  });
+}
+
+// ฟังก์ชันเลือกพอร์ตที่ไม่ถูกใช้งาน
+function getAvailablePort(startPort, callback) {
+  isPortInUse(startPort, (inUse) => {
+    if (inUse) {
+      console.log(`Port ${startPort} is in use, trying port ${startPort + 1}`);
+      callback(startPort + 1); // ใช้พอร์ตถัดไป
+    } else {
+      callback(startPort); // ใช้พอร์ตที่กำหนด
+    }
+  });
+}
+
+function createWindow(port) {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -14,8 +38,8 @@ function createWindow() {
     },
   });
 
-  // เปิดลิงก์ localhost:3000
-  win.loadURL("http://localhost:3000");
+  // เปิดลิงก์ localhost:{port}
+  win.loadURL(`http://localhost:${port}`);
 }
 
 // ฟังก์ชันสำหรับปิดโปรเซสตามชื่อ
@@ -56,27 +80,48 @@ app.whenReady().then(() => {
   console.log(`Server path: ${serverPath}`);
 
   // ตรวจสอบว่าพาธถูกต้องหรือไม่
-  const fs = require("fs");
   if (!fs.existsSync(serverPath)) {
     console.error(`Error: ${serverPath} does not exist.`);
     return;
   }
 
-  // รันเซิร์ฟเวอร์ Next.js (Standalone) ในหน้าต่าง cmd แบบพับจอ (Minimize)
-  serverProcess = exec(`start /min cmd /K node "${serverPath}"`, (error, stdout, stderr) => {
-    if (error) {
-      console.error(`Error: ${error.message}`);
-      return;
-    }
-    if (stderr) {
-      console.error(`stderr: ${stderr}`);
-      return;
-    }
-    console.log(`stdout: ${stdout}`);
-  });
+  // หา port ที่ใช้งานได้เริ่มจาก 3000
+  getAvailablePort(3000, (availablePort) => {
+    if (availablePort === 3000) {
+      console.log(`Port 3000 is available, starting server on port 3000`);
 
-  // รอให้เซิร์ฟเวอร์พร้อมก่อนเปิดหน้าต่างแอป
-  waitForServerReady("http://localhost:3000", createWindow);
+      // รันเซิร์ฟเวอร์ Next.js (Standalone) ในหน้าต่าง cmd แบบพับจอ (Minimize)
+      serverProcess = exec(`start /min cmd /K node "${serverPath}" --port ${availablePort}`, (error, stdout, stderr) => {
+        if (error) {
+          console.error(`Error: ${error.message}`);
+          return;
+        }
+        if (stderr) {
+          console.error(`stderr: ${stderr}`);
+          return;
+        }
+        console.log(`stdout: ${stdout}`);
+      });
+    } else {
+      console.log(`Port 3000 is in use, starting server on port ${availablePort}`);
+
+      // รันเซิร์ฟเวอร์ Next.js (Standalone) ในหน้าต่าง cmd แบบพับจอ (Minimize)
+      serverProcess = exec(`start /min cmd /K node "${serverPath}" --port ${availablePort}`, (error, stdout, stderr) => {
+        if (error) {
+          console.error(`Error: ${error.message}`);
+          return;
+        }
+        if (stderr) {
+          console.error(`stderr: ${stderr}`);
+          return;
+        }
+        console.log(`stdout: ${stdout}`);
+      });
+    }
+
+    // รอให้เซิร์ฟเวอร์พร้อมก่อนเปิดหน้าต่างแอป
+    waitForServerReady(`http://localhost:${availablePort}`, () => createWindow(availablePort));
+  });
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

@@ -1,10 +1,10 @@
 {
-  "name": "adb-web-manager",
+  "name": "adb-tools-manager",
   "version": "0.1.0",
   "main": "main.cjs",
   "private": true,
   "type": "module",
-  "description": "A web manager for ADB",
+  "description": "A tool manager for ADB",
   "author": "Mint@notero",
   "scripts": {
     "dev": "next dev",
@@ -18,7 +18,7 @@
     "electron": "electron .",
     "electron:dev": "npm run clean && npm run build && electron .",
     "lint": "next lint",
-    "postbuild": "xcopy /E /I /Y public .next\\standalone\\public && xcopy /E /I /Y .next\\static .next\\standalone\\.next\\static && xcopy /E /I /Y src\\build-tools .next\\standalone\\src\\build-tools && xcopy /E /I /Y src\\platform-tools .next\\standalone\\src\\platform-tools"
+    "postbuild": "xcopy /E /I /Y public .next\\standalone\\public && xcopy /E /I /Y .next\\static .next\\standalone\\.next\\static && xcopy /E /I /Y src\\build-tools .next\\standalone\\src\\build-tools && xcopy /E /I /Y src\\platform-tools .next\\standalone\\src\\platform-tools && xcopy /E /I /Y src\\adb-tools-setup .next\\standalone\\src\\adb-tools-setup"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -53,8 +53,8 @@
   "build": {
     "asar": true,
     "compression": "store",
-    "appId": "com.adb.webmanager",
-    "productName": "ADB Web Manager",
+    "appId": "com.adb.toolsmanager",
+    "productName": "ADB Tools Manager",
     "directories": {
       "output": "build/exe"
     },
@@ -73,8 +73,18 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "ADB Web Manager",
-      "runAfterFinish": true
+      "shortcutName": "ADB Tools Manager",
+      "runAfterFinish": true,
+      "include": "installer.nsh"
+    },
+    "win": {
+      "icon": "assets/icons/icon.ico" 
+    },
+    "mac": {
+      "icon": "assets/icons/icon.ico"
+    },
+    "linux": {
+      "icon": "assets/icons/icon.ico"
     }
   }
 }
