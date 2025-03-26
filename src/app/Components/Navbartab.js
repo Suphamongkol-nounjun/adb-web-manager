@@ -11,7 +11,7 @@ const Navbar = () => {
         </li>
         <li>
           <Link href="/adbcommand" className="hover:text-yellow-300">
-            ADB Command
+            ADB Connect Device
           </Link>
         </li>
       </ul>

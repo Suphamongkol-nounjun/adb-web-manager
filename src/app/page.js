@@ -19,7 +19,7 @@ export default function Homepage() {
                 cursor: 'pointer',
               }}
             >
-              ADB Command
+              ADB Connect Device
             </button>
           </Link>
         </div>

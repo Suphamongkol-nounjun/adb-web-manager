@@ -130,6 +130,7 @@ export default function adbcommand() {
   
         console.log("Updated Devices List with Packages:", updatedDevicesList);
         setDevices(updatedDevicesList); // อัปเดต devices state
+        setLoadingDevices(false);
   
       } else {
         console.log("❌ ไม่มีข้อมูลแพ็กเกจ");
@@ -202,7 +203,7 @@ export default function adbcommand() {
   
 
            console.log("All Devices:", devicesList);    
-             fetchCheckversion(devicesList);
+            //  fetchCheckversion(devicesList);
           } else {
             console.log("Package name ยังไม่พร้อม");
             setLoadingDevices(false); // ✅ โหลดเสร็จแล้ว
@@ -600,10 +601,15 @@ useEffect(() => {
   
 
 return (
+
+
   <div>
-    <main className="flex flex-col items-center justify-start min-h-screen p-4 gap-5 sm:p-10 mt-[80px]">
+    <main className="flex flex-col items-center justify-start min-h-screen p-8 gap-7 sm:p-20">
             {/* ข้อความเตือนเกี่ยวกับการเลือกแอปพลิเคชัน */}
             <div className="alert-message text-center mb-4 text-yellow-600 font-medium">
+            <h2 className="text-3xl font-semibold text-center text-blue-600 mb-6">
+   Open App / Force Stop / Clear Data
+</h2>
         <p>
           ⚠️ การกด <strong>Force Stop</strong> หรือ <strong>Clear Data</strong> <br></br>อาจทำให้เครื่องมีปัญหาหรือเกิดผลกระทบกับการทำงานของแอปพลิเคชัน ควรเลือกเฉพาะแอปที่ต้องการเท่านั้น
         </p>
@@ -655,7 +661,7 @@ return (
             <th className="px-4 py-3">IP Address</th>
             <th className="px-4 py-3">Device Status</th>
             <th className="px-4 py-3 min-w-[220px]">Status</th>
-            <th className="px-4 py-3 min-w-[150px]">Froce Stop</th>
+            <th className="px-4 py-3 min-w-[150px]">Force Stop</th>
             <th className="px-4 py-3 min-w-[150px]">Clear Data</th>
             <th className="px-4 py-3 min-w-[150px]">Open App</th>
           </tr>
@@ -685,7 +691,7 @@ return (
                     sx={{ ...modalbuttonStyle, ...modalhoverButtonStyle, backgroundColor: '#f57c00', color: 'white' }}
                     className="px-4 py-2 rounded text-white bg-orange-500 hover:bg-orange-600"
                   >
-                    Froce Stop
+                    Force Stop
                   </button>
                 </td>
                 <td className="border px-4 py-3 text-center">
@@ -816,6 +822,20 @@ return (
       </div>
 
     </main>
+    <div className="footer-instructions bg-gray-100 text-blue-600 font-medium py-4 mt-6">
+      <div className="max-w-3xl mx-auto text-left">
+    <p>
+      📱 หน้านี้ช่วยให้คุณสามารถจัดการแอปพลิเคชันที่ติดตั้งในอุปกรณ์ที่เชื่อมต่อผ่าน ADB ได้ โดยสามารถจัดการกับแอปพลิเคชันได้หลากหลายฟังก์ชัน เช่น Force Stop, Clear Data และเปิดแอป.<br />
+      <strong>ขั้นตอนการทำงาน:</strong><br />
+      1. เลือก <strong>ชื่อ Package</strong> ที่ต้องการจากรายการ.<br />
+      2. คุณสามารถพิมพ์ค้นหาในช่องค้นหาเพื่อให้แสดงรายการแอปที่ตรงกับคำที่พิมพ์.<br />
+      3. ระบบจะเช็คในตารางว่าแอปพลิเคชันที่เลือกมีอยู่ในอุปกรณ์ที่เชื่อมต่อหรือไม่.<br />
+      4. หลังจากเลือกแอปแล้ว คุณสามารถเลือกการดำเนินการต่าง ๆ ได้แก่ <strong>Force Stop</strong>, <strong>Clear Data</strong>, หรือ <strong>Open App</strong>.<br />
+      5. คุณสามารถเลือกที่จะดำเนินการกับแอปบนอุปกรณ์เฉพาะเครื่อง หรือทำการดำเนินการกับอุปกรณ์ทั้งหมดที่เชื่อมต่อ.<br />
+      โปรดระมัดระวังในการเลือกแอปที่ต้องการจัดการ เพื่อหลีกเลี่ยงผลกระทบต่อการทำงานของอุปกรณ์.
+    </p>
+  </div>
+</div>
   </div>
 );
 
