@@ -317,6 +317,11 @@ export default function Home() {
   return (
     <div>
       <main className="min-h-screen flex flex-col items-center justify-center p-8 gap-7 sm:p-20">
+
+      <h2 className="text-3xl font-semibold text-center text-blue-600 mb-6">
+  Scan Device
+</h2>
+
         {/* ปุ่ม Scan Network */}
         <button
           onClick={scanNetwork}

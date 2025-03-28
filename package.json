@@ -1,6 +1,6 @@
 {
   "name": "adb-tools-manager",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "main": "main.cjs",
   "private": true,
   "type": "module",
@@ -61,7 +61,8 @@
     },
     "files": [
       "main.cjs",
-      "package.json"
+      "package.json",
+      "src/license.json"
     ],
     "extraFiles": [
       {

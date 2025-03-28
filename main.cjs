@@ -3,152 +3,203 @@ const { exec } = require("child_process");
 const path = require("path");
 const http = require("http");
 const fs = require("fs");
+const net = require('net');
 
 let serverProcess = null;
+let mainWindow = null;
 
-// ฟังก์ชันสำหรับเช็คว่าพอร์ตถูกใช้งานหรือยัง
-function isPortInUse(port, callback) {
-  exec(`netstat -ano | findstr :${port}`, (error, stdout, stderr) => {
-    if (error || stderr) {
-      callback(false); // ไม่พบพอร์ตถูกใช้งาน
-    } else {
-      callback(true); // พบว่าพอร์ตถูกใช้งาน
-    }
+// Improved port checking using net module
+function isPortInUse(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer()
+      .once('error', () => resolve(true))
+      .once('listening', () => {
+        server.close();
+        resolve(false);
+      })
+      .listen(port);
   });
 }
 
-// ฟังก์ชันเลือกพอร์ตที่ไม่ถูกใช้งาน
-function getAvailablePort(startPort, callback) {
-  isPortInUse(startPort, (inUse) => {
-    if (inUse) {
-      console.log(`Port ${startPort} is in use, trying port ${startPort + 1}`);
-      callback(startPort + 1); // ใช้พอร์ตถัดไป
-    } else {
-      callback(startPort); // ใช้พอร์ตที่กำหนด
-    }
-  });
+// Find available port starting from given port
+async function getAvailablePort(startPort) {
+  let port = startPort;
+  while (await isPortInUse(port)) {
+    console.log(`Port ${port} is in use, trying port ${port + 1}`);
+    port++;
+  }
+  return port;
 }
 
+// Create main application window
 function createWindow(port) {
-  const win = new BrowserWindow({
+  if (mainWindow) {
+    mainWindow.focus();
+    return;
+  }
+
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
       nodeIntegration: false,
+      contextIsolation: true,
     },
   });
 
-  // เปิดลิงก์ localhost:{port}
-  win.loadURL(`http://localhost:${port}`);
-}
+  mainWindow.loadURL(`http://localhost:${port}`);
 
-// ฟังก์ชันสำหรับปิดโปรเซสตามชื่อ
-function killProcess(processName) {
-  exec(`taskkill /F /IM "${processName}"`, (err, stdout, stderr) => {
-    if (err) {
-      console.error(`Error killing ${processName}: ${err.message}`);
-      return;
-    }
-    console.log(`${processName} terminated.`);
+  mainWindow.on('closed', () => {
+    mainWindow = null;
   });
 }
 
-// ฟังก์ชันตรวจสอบว่าเซิร์ฟเวอร์พร้อมหรือยัง
-function waitForServerReady(url, callback) {
-  const checkServer = () => {
-    http
-      .get(url, (res) => {
+// Kill process by name (improved with Promise and force tree kill)
+function killProcess(processName) {
+  return new Promise((resolve) => {
+    const command = process.platform === 'win32' 
+      ? `taskkill /F /IM "${processName}" /T`
+      : `pkill -f "${processName}"`;
+
+    exec(command, (err) => {
+      if (err) {
+        console.error(`Error killing ${processName}:`, err.message);
+      } else {
+        console.log(`${processName} terminated successfully`);
+      }
+      resolve();
+    });
+  });
+}
+
+// Check if server is ready
+function waitForServerReady(url, timeout = 30000) {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+    
+    const checkServer = () => {
+      http.get(url, (res) => {
         if (res.statusCode === 200) {
           console.log("Server is ready!");
-          callback();
+          resolve();
         } else {
-          console.log("Waiting for server...");
-          setTimeout(checkServer, 1000);
+          retryOrReject();
         }
-      })
-      .on("error", () => {
-        console.log("Waiting for server...");
-        setTimeout(checkServer, 1000);
+      }).on('error', (err) => {
+        retryOrReject(err);
       });
-  };
-  checkServer();
+    };
+
+    const retryOrReject = (err) => {
+      if (Date.now() - startTime >= timeout) {
+        reject(new Error(`Server not ready after ${timeout}ms: ${err?.message || 'Unknown error'}`));
+      } else {
+        setTimeout(checkServer, 1000);
+      }
+    };
+
+    checkServer();
+  });
 }
 
-app.whenReady().then(() => {
-  // ตรวจสอบพาธว่าไฟล์อยู่ในโฟลเดอร์ที่คาดหวัง
-  const serverPath = path.join(process.cwd(), "standalone", "server.js");
-  console.log(`Server path: ${serverPath}`);
+// Clean up any stale processes before starting
+async function cleanupStaleProcesses() {
+  console.log('Cleaning up stale processes...');
+  await killProcess("node.exe");
+  await killProcess("cmd.exe");
+  await killProcess("ADB Web Manager.exe");
+  await killProcess("adb.exe");
+}
 
-  // ตรวจสอบว่าพาธถูกต้องหรือไม่
-  if (!fs.existsSync(serverPath)) {
-    console.error(`Error: ${serverPath} does not exist.`);
-    return;
-  }
+// Start the Next.js server
+async function startServer(serverPath, port) {
+  return new Promise((resolve, reject) => {
+    const command = process.platform === 'win32'
+      ? `start /min cmd /K node "${serverPath}" --port ${port}`
+      : `xterm -e "node '${serverPath}' --port ${port}"`;
 
-  // หา port ที่ใช้งานได้เริ่มจาก 3000
-  getAvailablePort(3000, (availablePort) => {
-    if (availablePort === 3000) {
-      console.log(`Port 3000 is available, starting server on port 3000`);
+    serverProcess = exec(command, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Server process error: ${error.message}`);
+        reject(error);
+      }
+      if (stderr) {
+        console.error(`Server stderr: ${stderr}`);
+      }
+      console.log(`Server stdout: ${stdout}`);
+    });
 
-      // รันเซิร์ฟเวอร์ Next.js (Standalone) ในหน้าต่าง cmd แบบพับจอ (Minimize)
-      serverProcess = exec(`start /min cmd /K node "${serverPath}" --port ${availablePort}`, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`Error: ${error.message}`);
-          return;
-        }
-        if (stderr) {
-          console.error(`stderr: ${stderr}`);
-          return;
-        }
-        console.log(`stdout: ${stdout}`);
-      });
-    } else {
-      console.log(`Port 3000 is in use, starting server on port ${availablePort}`);
+    serverProcess.on('exit', (code) => {
+      console.log(`Server process exited with code ${code}`);
+    });
 
-      // รันเซิร์ฟเวอร์ Next.js (Standalone) ในหน้าต่าง cmd แบบพับจอ (Minimize)
-      serverProcess = exec(`start /min cmd /K node "${serverPath}" --port ${availablePort}`, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`Error: ${error.message}`);
-          return;
-        }
-        if (stderr) {
-          console.error(`stderr: ${stderr}`);
-          return;
-        }
-        console.log(`stdout: ${stdout}`);
-      });
+    resolve(serverProcess);
+  });
+}
+
+// Main application lifecycle
+app.whenReady().then(async () => {
+  try {
+    // Clean up any existing processes
+    await cleanupStaleProcesses();
+
+    // Check server path
+    const serverPath = path.join(process.cwd(), "standalone", "server.js");
+    console.log(`Server path: ${serverPath}`);
+
+    if (!fs.existsSync(serverPath)) {
+      throw new Error(`Server file not found at ${serverPath}`);
     }
 
-    // รอให้เซิร์ฟเวอร์พร้อมก่อนเปิดหน้าต่างแอป
-    waitForServerReady(`http://localhost:${availablePort}`, () => createWindow(availablePort));
-  });
+    // Get available port
+    const availablePort = await getAvailablePort(3000);
+    console.log(`Starting server on port ${availablePort}`);
 
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+    // Start server
+    await startServer(serverPath, availablePort);
+
+    // Wait for server to be ready
+    await waitForServerReady(`http://localhost:${availablePort}`);
+
+    // Create main window
+    createWindow(availablePort);
+  } catch (error) {
+    console.error('Application startup failed:', error);
+    app.quit();
+  }
 });
 
-// จัดการเมื่อปิดหน้าต่าง
-app.on("window-all-closed", () => {
-  // ปิดเซิร์ฟเวอร์ Next.js ถ้ามี
+// Handle macOS window activation
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
+});
+
+// Handle application shutdown
+app.on("window-all-closed", async () => {
+  // Kill server process if exists
   if (serverProcess) {
+    console.log('Stopping server process...');
     serverProcess.kill();
-    console.log("Next.js server stopped.");
   }
 
-  // ปิดโปรเซส ADB Web Manager
-  killProcess("ADB Web Manager.exe");
-
-  // ปิดโปรเซส ADB
-  killProcess("adb.exe");
-
-  // ปิดโปรเซส Node.js
-  killProcess("node.exe");
-
-  // ปิดโปรเซส CMD ที่รันเซิร์ฟเวอร์
-  killProcess("cmd.exe");
+  // Kill related processes
+  await killProcess("ADB Web Manager.exe");
+  await killProcess("adb.exe");
+  await killProcess("node.exe");
+  await killProcess("cmd.exe");
 
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+// Handle unexpected crashes
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
