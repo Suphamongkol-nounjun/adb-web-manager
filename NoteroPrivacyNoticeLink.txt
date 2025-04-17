@@ -46,5 +46,5 @@
 <style="Announcement-Content">For further information about our privacy practices, or if you have any questions or complaints, please contact us via email at <link="ID">dpo@notero.co</link><br>
 <style="Announcement-Content"><size=120%><align="right">This Privacy Notice was updated on June 21, 2024</align></size>
 <style="Announcement-Content">
-For more information, please visit <a href="https://app.notero.co/" target="_blank"><strong>Read more</strong></a>.
+For more information, please visit <a href="https://app.notero.co/">Read more</a>.
 </style>
