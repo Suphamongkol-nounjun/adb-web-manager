@@ -1,13 +1,19 @@
 "use client";  // ✅ จำเป็นสำหรับ Next.js Client Component
 
-import { useState, useEffect } from "react";
+import { useState, useEffect,useRef } from "react";
 import AdbCommandGroup from "../Components/ADBCommandGroup";
+import { Modal, Box, Button, Typography } from '@mui/material';
+import { modalStyle, modalbuttonStyle,modalhoverButtonStyle } from "./modalStyle"
+
 
 export default function Home() {
   const [devices, setDevices] = useState([]);
   const [scanning, setScanning] = useState(false);
   const [localIp, setLocalIp] = useState("");
   const [logMessage, setLogMessage] = useState(""); // สำหรับแสดง log ข้อความ
+  const [showModal, setShowModal] = useState(false);
+  const [ips, setIps] = useState([]);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
 
@@ -97,7 +103,89 @@ export default function Home() {
       console.error("Error fetching ADB devices:", error);
     }
   };
-  
+
+  useEffect(() => {
+    if (showModal) {
+      const devices = JSON.parse(localStorage.getItem("adbDevices") || "[]");
+      const ipList = devices.map(d => d.ip);
+      setIps([...ipList, ""]); // เพิ่มแถวเปล่าสำหรับพิมพ์ใหม่
+    }
+  }, [showModal]);
+
+  const handleDeleteIp = (index) => {
+    setIps((prevIps) => prevIps.filter((_, i) => i !== index));
+  };
+
+  const handleSave = () => {
+  const filteredIps = ips
+    .map(ip => ip.trim())
+    .filter(ip => ip !== "");  // กรองเอาเฉพาะที่ไม่ว่าง
+
+  const updatedDevices = filteredIps.map(ip => ({
+    ip,
+    mac: "",
+    vendor: "",
+    port: "",
+    service: "",
+    status: "Disconnect",
+  }));
+
+  setDevices(updatedDevices);
+  localStorage.setItem("adbDevices", JSON.stringify(updatedDevices));
+  setShowModal(false);
+};
+
+    const handleInputChange = (index, value) => {
+    setIps((prevIps) => {
+      const newIps = [...prevIps];
+      newIps[index] = value;
+      return newIps;
+    });
+  };
+
+   const handleKeyDown = (e, index) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const currentIp = ips[index].trim();
+    if (currentIp === "") return;
+
+    const duplicate = ips.some((ip, i) => i !== index && ip.trim() === currentIp);
+    if (duplicate) {
+      setErrorMessage("IP นี้มีอยู่แล้วในรายการ");
+      return;
+    }
+
+    setErrorMessage(""); // เคลียร์ error ถ้าผ่าน
+    if (index === ips.length - 1) {
+      setIps(prevIps => [...prevIps, ""]);
+    }
+  }
+};
+
+ const handlePaste = (e, index) => {
+  e.preventDefault();
+  const paste = e.clipboardData.getData("text");
+  const pastedLines = paste
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line !== "");
+
+  setIps(prevIps => {
+    const before = prevIps.slice(0, index);
+    const after = prevIps.slice(index + 1);
+    const uniquePasted = pastedLines.filter(line => 
+      !prevIps.some(ip => ip.trim() === line)
+    );
+
+    if (uniquePasted.length < pastedLines.length) {
+      setErrorMessage("บาง IP ถูกละไว้เพราะซ้ำกับที่มีอยู่แล้ว");
+    } else {
+      setErrorMessage("");
+    }
+
+    return [...before, ...uniquePasted, ...after];
+  });
+};
 
   const scanNetwork = async () => {
     if (!localIp) {
@@ -314,6 +402,7 @@ export default function Home() {
     //  console.log("Log message:", logMessage); // ตรวจสอบค่า logMessage
   }, [logMessage]); // ทำงานทุกครั้งที่ logMessage เปลี่ยนแปลง
 
+  
   return (
     <div>
       <main className="min-h-screen flex flex-col items-center justify-center p-8 gap-7 sm:p-20">
@@ -330,6 +419,13 @@ export default function Home() {
         >
           {scanning ? "กำลังสแกน..." : "สแกน Network"}
         </button>
+
+        <button
+        onClick={() => setShowModal(true)}
+        className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+      >
+        เพิ่ม IP เอง
+      </button>
 
         <p className="text-gray-600">📍 IP ของคุณ: {localIp || "กำลังโหลด..."}</p>
 
@@ -408,6 +504,88 @@ export default function Home() {
             {logMessage}
           </pre>
         </div>
+<Modal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        aria-labelledby="modal-title"
+      >
+        <Box sx={modalStyle}>
+          <Typography id="modal-title" variant="h6" gutterBottom>
+            รายการ IP
+          </Typography>
+
+          {ips.length === 0 ? (
+            <Typography variant="body2" color="textSecondary">
+              ยังไม่มี IP ที่บันทึกไว้
+            </Typography>
+          ) : (
+            <table className="w-full text-left border border-gray-300">
+              <thead>
+                <tr className="bg-blue-100">
+                  <th className="p-2 border">#</th>
+                  <th className="p-2 border">IP Address</th>
+                  <th className="p-2 border text-center">ลบ</th>
+                </tr>
+              </thead>
+               <tbody>
+      {ips.map((ip, index) => (
+        <tr key={index}>
+          <td className="p-2 border text-center">{index + 1}</td>
+          <td className="p-2 border">
+            <textarea
+              value={ip}
+              onChange={e => handleInputChange(index, e.target.value)}
+              onKeyDown={e => handleKeyDown(e, index)}
+              onPaste={e => handlePaste(e, index)}  // <-- ใส่ตรงนี้
+              className="w-full p-2 border rounded resize-none"
+              rows={1}
+              placeholder="พิมพ์ IP address แล้วกด Enter หรือวางหลายบรรทัด"
+              autoFocus={index === ips.length -1}
+            />
+          </td>
+          <td className="p-2 border text-center">
+            <button
+              onClick={() => handleDeleteIp(index)}
+              className="text-red-500 hover:underline"
+              disabled={ips.length === 1}
+            >
+              ลบ
+            </button>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+            </table>
+          )}
+
+          <Box mt={3} textAlign="right" className="flex justify-end gap-2">
+            {errorMessage && (
+  <Typography className="text-red-500 mt-3 text-sm">
+    ⚠️ {errorMessage}
+  </Typography>
+)}
+  <Button
+    variant="outlined"
+    color="error"
+    onClick={() => setIps([""])}  // ล้างรายการ แล้วเพิ่มแถวเปล่า 1 แถว
+  >
+    ลบทั้งหมด
+  </Button>
+
+  <Button
+    variant="contained"
+    onClick={handleSave}
+    color="primary"
+  >
+    บันทึก
+  </Button>
+</Box>
+        </Box>
+      </Modal>
+
+
+
+
       </main>
     </div>
   );

@@ -14,7 +14,7 @@ export async function POST(req) {
     }
 
     const filePath = path.join(process.cwd(), 'src', 'license.json');  // เปลี่ยนเป็น path ของ license.json
-    console.log("License file path: ", filePath);
+    // console.log("License file path: ", filePath);
 
     // ตรวจสอบว่าไฟล์มีอยู่จริงหรือไม่
     if (!fs.existsSync(filePath)) {
